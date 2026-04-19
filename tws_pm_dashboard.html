@@ -45,11 +45,10 @@ function __initDashboard() {
   fetchLiveData();
   // 启动淘宝热词实时抓取（作为 data.json 不可用时的降级）
   fetchTaobaoWords();
-  // 图表渲染后清除白底，并用 MutationObserver 持续监听
-  setTimeout(clearPlotlyBg, 200);
+  // 图表渲染后清除白底，只在初始化时执行几次，不用 MutationObserver（避免死循环）
+  setTimeout(clearPlotlyBg, 300);
   setTimeout(clearPlotlyBg, 800);
-  const bgObserver = new MutationObserver(() => clearPlotlyBg());
-  bgObserver.observe(document.querySelector('.main') || document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['style']});
+  setTimeout(clearPlotlyBg, 2000);
   const now = new Date().toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
   ["ts","ts2","ts3"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=now;});
   const secs=document.querySelectorAll(".section");
