@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TWS 耳机品类 · PM 仪表板</title>
+<script>
+// Plotly 加载完成后再初始化，避免图表空白
+window.__plotlyReady = false;
+// ── 清除 Plotly 注入的白色 SVG 背景 ──
+function clearPlotlyBg() {
+  document.querySelectorAll('.js-plotly-plot svg, .plotly-graph-div svg').forEach(svg => {
+    // 清除 svg 自身背景
+    svg.style.background = 'transparent';
+    svg.style.backgroundColor = 'transparent';
+    // 清除第一个 rect（Plotly 的 paper_bgcolor 背景矩形）
+    const rects = svg.querySelectorAll('rect');
+    rects.forEach(r => {
+      const fill = r.getAttribute('fill');
+      if (fill && (fill === '#ffffff' || fill === 'white' || fill === 'rgb(255, 255, 255)' || fill === '#fff')) {
+        r.setAttribute('fill', 'transparent');
+      }
+    });
+    // 清除 svg 容器 div 背景
+    const parent = svg.closest('.svg-container') || svg.parentElement;
+    if (parent) {
+      parent.style.background = 'transparent';
+      parent.style.backgroundColor = 'transparent';
+    }
+  });
+}
+
+function __initDashboard() {
+  if (typeof Plotly === 'undefined') {
+    setTimeout(__initDashboard, 100);
+    return;
+  }
+  initSelects();
+  refreshAllCharts();
+  renderPie();
+  renderDelta();
+  renderChina();
+  renderRadar();
+  // 尝试拉取爬虫生成的 data.json，用真实数据覆盖 mock
+  fetchLiveData();
+  // 启动淘宝热词实时抓取（作为 data.json 不可用时的降级）
+  fetchTaobaoWords();
+  // 图表渲染后清除白底，只在初始化时执行几次，不用 MutationObserver（避免死循环）
+  setTimeout(clearPlotlyBg, 300);
+  setTimeout(clearPlotlyBg, 800);
+  setTimeout(clearPlotlyBg, 2000);
+  const now = new Date().toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  ["ts","ts2","ts3"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=now;});
+  const secs=document.querySelectorAll(".section");
+  const navs=document.querySelectorAll(".sb-item");
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting)navs.forEach(n=>n.classList.toggle("active",n.getAttribute("href")==="#"+e.target.id));
+    });
+  },{rootMargin:"-20% 0px -60% 0px"});
+  secs.forEach(s=>obs.observe(s));
+}
+// ── 移动端侧栏抽屉 ──
+function openSidebar() {
+  document.querySelector('.sidebar').classList.add('mob-open');
+  document.getElementById('sb-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('sb-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+// 点击侧栏导航项后自动关闭抽屉
+document.addEventListener('click', function(e) {
+  var item = e.target.closest('.sb-item');
+  if (item && window.innerWidth < 768) {
+    setTimeout(closeSidebar, 120);
+  }
+});
+
+// ── 底部导航高亮同步 ──
+function mnavGo(hash, btn) {
+  document.querySelectorAll('.mnav-item').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var el = document.querySelector(hash);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+// 滚动时同步底部导航高亮
+(function(){
+  var sectionMap = {kpi:0, financial:1, shipment:1, share:2, products:3, radar:3, news:4, sentiment:4, sources:4};
+  window.addEventListener('scroll', function(){
+    if (window.innerWidth >= 768) return;
+    var btns = document.querySelectorAll('.mnav-item');
+    var cur = '';
+    document.querySelectorAll('.section').forEach(function(s){
+      var rect = s.getBoundingClientRect();
+      if (rect.top <= 120) cur = s.id;
+    });
+    if (cur && sectionMap[cur] !== undefined) {
+      btns.forEach(function(b,i){ b.classList.toggle('active', i === sectionMap[cur]); });
+    }
+  }, {passive:true});
+})();
+
+// ── 窗口 resize 时让 Plotly 图表自适应宽度 ──
+(function(){
+  var timer;
+  window.addEventListener('resize', function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      if (typeof Plotly !== 'undefined') {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(el){
+          try { Plotly.Plots.resize(el); } catch(e){}
+        });
+        // 重新渲染雷达图以应用正确的移动端margin
+        if (typeof renderRadar === 'function') renderRadar();
+        setTimeout(clearPlotlyBg, 200);
+      }
+    }, 250);
+  });
+})();
+
+window.addEventListener('DOMContentLoaded', function() {
+  var CDN_LIST = [
+    'https://cdn.plot.ly/plotly-2.32.0.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.32.0/plotly.min.js',
+    'https://unpkg.com/plotly.js@2.32.0/dist/plotly.min.js'
+  ];
+  function tryLoad(idx) {
+    if (idx >= CDN_LIST.length) {
+      document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:sans-serif;color:#4A5070;"><h2>⚠️ 图表库加载失败</h2><p>请检查网络连接后刷新页面</p></div>';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = CDN_LIST[idx];
+    s.onload = __initDashboard;
+    s.onerror = function() { tryLoad(idx + 1); };
+    document.head.appendChild(s);
+  }
+  tryLoad(0);
+});
+</script>
+<style>
+/* ════════════════════════════════════════
+   iOS 磨砂玻璃 · 浅色渐变 Design System
+   ════════════════════════════════════════ */
+:root {
+  /* 背景 — 浅蓝紫渐变，仿 iOS 壁纸质感 */
+  --bg-from:   #E8EDFF;
+  --bg-to:     #F0F7FF;
+  --bg:        linear-gradient(145deg, #E8EDFF 0%, #EEF4FF 40%, #F0F7FF 100%);
+
+  /* 磨砂卡片 */
+  --glass:     rgba(255,255,255,0.68);
+  --glass-hv:  rgba(255,255,255,0.82);
+  --glass-bd:  rgba(255,255,255,0.9);  /* topbar/sidebar 更不透明 */
+  --border:    rgba(255,255,255,0.7);
+  --border2:   rgba(180,190,220,0.35);
+  --divider:   rgba(180,190,220,0.28);
+
+  /* 文字 */
+  --text-1:    #1A1D2E;
+  --text-2:    #4A5070;
+  --text-3:    #8B92B8;
+
+  /* 强调色 */
+  --accent:    #5A5FE0;
+  --accent2:   #818CF8;
+  --teal:      #06B6D4;
+  --green:     #10B981;
+  --red:       #F43F5E;
+  --yellow:    #F59E0B;
+  --purple:    #8B5CF6;
+
+  /* 渐变 */
+  --grad1:  linear-gradient(135deg,#6366F1 0%,#818CF8 100%);
+  --grad2:  linear-gradient(135deg,#06B6D4 0%,#6366F1 100%);
+  --grad3:  linear-gradient(135deg,#F43F5E 0%,#F59E0B 100%);
+  --grad4:  linear-gradient(135deg,#10B981 0%,#06B6D4 100%);
+
+  /* 阴影 — iOS 风格柔和多层 */
+  --shadow-sm: 0 2px 8px rgba(100,110,200,.08), 0 0 0 1px rgba(255,255,255,.6) inset;
+  --shadow-md: 0 8px 24px rgba(100,110,200,.14), 0 2px 6px rgba(100,110,200,.08), 0 0 0 1px rgba(255,255,255,.5) inset;
+  --shadow-lg: 0 16px 48px rgba(100,110,200,.18), 0 0 0 1px rgba(255,255,255,.5) inset;
+  --shadow-glow: 0 0 20px rgba(99,102,241,.15);
+
+  --r:      16px;
+  --r-sm:   10px;
+  --r-xs:   7px;
+  --sidebar-w: 200px;
+  --topbar-h:  48px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;min-width:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter','SF Pro Display','PingFang SC','Helvetica Neue',sans-serif;
+  /* iOS 壁纸感渐变背景 — 加深色饱和度，让玻璃卡片更突出 */
+  background: linear-gradient(135deg, #CDD5FF 0%, #D8E8FF 35%, #C8DEFF 65%, #D0ECFF 100%);
+  background-attachment: fixed;
+  min-height:100vh;
+  color:var(--text-1);font-size:13px;line-height:1.6;
+}
+
+/* ─── 全局光晕装饰（iOS 壁纸感） ─── */
+body::before{
+  content:"";position:fixed;top:-15%;left:-8%;
+  width:65vw;height:65vw;
+  background:radial-gradient(circle, rgba(120,130,255,.32) 0%, rgba(100,120,255,.08) 55%, transparent 75%);
+  border-radius:50%;pointer-events:none;z-index:0;
+}
+body::after{
+  content:"";position:fixed;bottom:-12%;right:-8%;
+  width:55vw;height:55vw;
+  background:radial-gradient(circle, rgba(80,180,255,.28) 0%, rgba(60,160,255,.08) 55%, transparent 75%);
+  border-radius:50%;pointer-events:none;z-index:0;
+}
+
+/* ─── Topbar — 磨砂顶栏 ─── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar-h);z-index:200;
+  background:linear-gradient(90deg, rgba(210,220,255,.82) 0%, rgba(205,218,255,.78) 100%);
+  backdrop-filter:saturate(200%) blur(28px);
+  -webkit-backdrop-filter:saturate(200%) blur(28px);
+  border-bottom:1px solid rgba(255,255,255,.60);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px 0 calc(var(--sidebar-w) + 20px);
+}
+.tb-brand{display:flex;align-items:center;gap:8px;}
+.tb-title{font-size:13px;font-weight:700;color:var(--text-1);letter-spacing:-.1px;}
+.tb-title em{font-style:normal;color:var(--accent);}
+.tb-right{display:flex;align-items:center;gap:10px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.tb-time{font-size:11px;color:var(--text-3);}
+.tb-badge{
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+  background:rgba(99,102,241,.1);color:var(--accent);
+  border:1px solid rgba(99,102,241,.2);
+  backdrop-filter:blur(8px);
+}
+
+/* ─── Sidebar — 磨砂侧栏 ─── */
+.sidebar{
+  position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;z-index:300;
+  background:linear-gradient(180deg, rgba(218,226,255,.85) 0%, rgba(208,220,255,.80) 100%);
+  backdrop-filter:saturate(200%) blur(32px);
+  -webkit-backdrop-filter:saturate(200%) blur(32px);
+  border-right:1px solid rgba(255,255,255,.65);
+  display:flex;flex-direction:column;padding-top:0;
+}
+.sb-brand-row{
+  height:var(--topbar-h);display:flex;align-items:center;gap:8px;
+  padding:0 14px;border-bottom:1px solid rgba(200,210,240,.35);flex-shrink:0;
+}
+.sb-brand-icon{
+  width:26px;height:26px;border-radius:7px;background:var(--grad1);
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(99,102,241,.35);
+}
+.sb-brand-name{font-size:12px;font-weight:800;color:var(--text-1);}
+.sb-brand-sub{font-size:10px;color:var(--text-3);margin-top:1px;}
+.sb-section{
+  padding:12px 12px 3px;font-size:9px;font-weight:700;letter-spacing:2px;
+  color:var(--text-3);text-transform:uppercase;
+}
+.sb-item{
+  display:flex;align-items:center;gap:7px;padding:7px 10px;margin:1px 6px;
+  color:var(--text-2);text-decoration:none;font-size:12px;font-weight:500;
+  border-radius:var(--r-sm);transition:all .2s;cursor:pointer;
+  border:none;background:none;width:calc(100% - 12px);
+}
+.sb-item:hover{
+  color:var(--accent);
+  background:rgba(99,102,241,.08);
+  backdrop-filter:blur(8px);
+}
+.sb-item.active{
+  color:var(--accent);
+  background:rgba(255,255,255,.55);
+  font-weight:600;
+  box-shadow:0 2px 8px rgba(99,102,241,.1), 0 0 0 1px rgba(99,102,241,.12);
+  backdrop-filter:blur(12px);
+}
+.sb-item .ic{font-size:13px;width:18px;text-align:center;flex-shrink:0;}
+.sb-badge{
+  margin-left:auto;padding:2px 6px;border-radius:8px;font-size:9px;font-weight:700;
+  background:rgba(16,185,129,.15);color:#047857;
+  border:1px solid rgba(16,185,129,.2);
+}
+.sb-footer{
+  margin-top:auto;padding:12px 14px;border-top:1px solid rgba(200,210,240,.3);
+  font-size:10px;color:var(--text-3);line-height:1.8;
+}
+
+/* ─── Main ─── */
+.main{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:20px 24px 60px;position:relative;z-index:1;width:calc(100% - var(--sidebar-w));}
+.section{width:100%;}
+.card{width:100%;}
+
+/* ─── Time Filter Bar — 磨砂胶囊 ─── */
+.filter-bar{
+  display:flex;align-items:center;gap:10px;margin-bottom:20px;
+  background:linear-gradient(135deg, rgba(215,224,255,.65) 0%, rgba(205,218,255,.52) 100%);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid rgba(255,255,255,.78);
+  border-top:1px solid rgba(255,255,255,.92);
+  border-radius:var(--r);padding:8px 16px;
+  box-shadow:var(--shadow-sm);
+  flex-wrap:wrap;min-height:44px;
+}
+.filter-label{font-size:10px;font-weight:700;color:var(--text-3);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;}
+.filter-sep{width:1px;height:16px;background:rgba(180,190,220,.4);margin:0 2px;}
+.fselect-wrap{display:flex;align-items:center;gap:6px;}
+.fselect{
+  padding:4px 24px 4px 10px;border-radius:var(--r-xs);font-size:12px;font-weight:700;
+  border:1px solid rgba(180,190,220,.4);
+  color:var(--text-1);
+  background:rgba(255,255,255,.65);
+  backdrop-filter:blur(8px);
+  cursor:pointer;outline:none;transition:all .2s;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238B92B8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+.fselect:focus,.fselect:hover{border-color:rgba(99,102,241,.5);box-shadow:0 0 0 3px rgba(99,102,241,.08);}
+.frange-arrow{font-size:12px;color:var(--text-3);}
+.filter-reset{
+  padding:4px 12px;border-radius:var(--r-xs);font-size:11px;font-weight:600;
+  background:rgba(255,255,255,.5);color:var(--text-3);
+  border:1px solid rgba(180,190,220,.35);
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+  backdrop-filter:blur(8px);
+}
+.filter-reset:hover{color:var(--accent);border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.07);}
+.filter-reset.active-preset{
+  color:var(--accent);border-color:rgba(99,102,241,.35);
+  background:rgba(99,102,241,.1);font-weight:700;
+  box-shadow:0 1px 4px rgba(99,102,241,.15);
+}
+.filter-info{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);white-space:nowrap;}
+.filter-info-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);}
+#filter-display{font-weight:700;color:var(--accent);font-size:12px;}
+#filter-count{font-size:10px;}
+
+/* ─── Section ─── */
+.section{margin-bottom:28px;scroll-margin-top:80px;}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sec-left{display:flex;align-items:center;gap:10px;}
+.sec-icon{
+  width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;
+  background:rgba(255,255,255,.6);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 1px 4px rgba(100,110,200,.1);
+}
+.sec-title{font-size:14px;font-weight:700;color:var(--text-1);}
+.sec-tag{
+  font-size:11px;color:var(--text-3);
+  background:rgba(255,255,255,.55);
+  backdrop-filter:blur(8px);
+  padding:3px 10px;border-radius:20px;
+  border:1px solid rgba(200,210,240,.4);
+}
+
+/* ─── Card — 核心磨砂卡片 ─── */
+.card{
+  /* 用蓝紫色调玻璃色，而非纯白，让卡片融入背景渐变 */
+  background:linear-gradient(145deg, rgba(218,225,255,.72) 0%, rgba(205,218,255,.58) 100%);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid rgba(255,255,255,.80);
+  border-top:1px solid rgba(255,255,255,.95);
+  border-left:1px solid rgba(255,255,255,.90);
+  border-radius:var(--r);
+  padding:18px;
+  box-shadow:0 4px 20px rgba(80,90,180,.10), 0 1px 4px rgba(80,90,180,.05), 0 0 0 1px rgba(255,255,255,.5) inset;
+  transition:box-shadow .25s, transform .2s, background .2s;
+}
+.card:hover{
+  background:linear-gradient(145deg, rgba(228,234,255,.80) 0%, rgba(215,226,255,.68) 100%);
+  box-shadow:0 8px 32px rgba(80,90,180,.14), 0 2px 8px rgba(80,90,180,.07), 0 0 0 1px rgba(255,255,255,.65) inset;
+  transform:translateY(-2px);
+}
+.card-title{font-size:13px;font-weight:700;color:#1A1D40;margin-bottom:3px;}
+.card-sub{font-size:11px;color:rgba(90,100,160,.75);margin-bottom:14px;}
+
+/* ─── KPI ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+.kpi{
+  background:linear-gradient(145deg, rgba(218,225,255,.70) 0%, rgba(205,218,255,.55) 100%);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid rgba(255,255,255,.80);
+  border-top:1px solid rgba(255,255,255,.95);
+  border-left:1px solid rgba(255,255,255,.90);
+  border-radius:var(--r);
+  padding:18px 16px;
+  box-shadow:0 4px 16px rgba(80,90,180,.10), 0 1px 4px rgba(80,90,180,.05), 0 0 0 1px rgba(255,255,255,.5) inset;
+  position:relative;overflow:hidden;
+  transition:transform .22s, box-shadow .22s, background .2s;
+}
+/* 顶部彩色光晕条 */
+.kpi::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--grad1);opacity:.55;border-radius:var(--r) var(--r) 0 0;
+}
+/* 右上角装饰光斑 */
+.kpi::after{
+  content:"";position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;
+  background:radial-gradient(circle, rgba(99,102,241,.1) 0%, transparent 70%);
+  border-radius:50%;pointer-events:none;
+}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(80,90,180,.14),0 2px 8px rgba(80,90,180,.07),0 0 0 1px rgba(255,255,255,.70) inset;background:linear-gradient(145deg, rgba(228,234,255,.80) 0%, rgba(215,226,255,.65) 100%);}
+.kpi-lbl{font-size:10px;font-weight:700;color:rgba(90,100,160,.85);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;}
+.kpi-val{font-size:26px;font-weight:800;color:#1A1D40;line-height:1.1;letter-spacing:-.5px;text-shadow:0 1px 2px rgba(255,255,255,.6);}
+.kpi-delta{
+  font-size:11px;font-weight:700;margin-top:6px;
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 8px;border-radius:20px;
+  backdrop-filter:blur(4px);
+}
+.kpi-delta.up{color:#047857;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);}
+.kpi-delta.dn{color:#BE123C;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.2);}
+.kpi-delta.flat{color:#92400E;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);}
+.kpi-sub{font-size:10px;color:rgba(90,100,160,.75);margin-top:4px;}
+.kpi-accent::before{background:var(--grad2);}
+.kpi-accent::after{background:radial-gradient(circle, rgba(6,182,212,.12) 0%, transparent 70%);}
+.kpi-warn::before{background:var(--grad3);}
+.kpi-warn::after{background:radial-gradient(circle, rgba(244,63,94,.1) 0%, transparent 70%);}
+
+/* ─── Grid ─── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.g13{display:grid;grid-template-columns:1fr 3fr;gap:14px;}
+
+/* ─── Note ─── */
+.note{
+  font-size:11px;color:var(--text-2);margin-top:10px;padding:8px 14px;
+  background:rgba(99,102,241,.05);
+  backdrop-filter:blur(8px);
+  border-left:3px solid rgba(99,102,241,.4);
+  border-radius:var(--r-xs);line-height:1.7;
+}
+.note.ok{background:rgba(16,185,129,.06);border-left-color:rgba(16,185,129,.5);}
+.note.warn{background:rgba(245,158,11,.06);border-left-color:rgba(245,158,11,.5);}
+
+/* ─── Table ─── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl thead tr{background:rgba(240,244,255,.5);}
+.tbl th{
+  padding:9px 12px;text-align:left;font-weight:700;color:var(--text-3);font-size:10px;
+  letter-spacing:.8px;text-transform:uppercase;
+  border-bottom:1px solid rgba(180,190,220,.25);
+}
+.tbl td{padding:10px 12px;border-bottom:1px solid rgba(180,190,220,.18);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tbody tr{transition:background .15s;}
+.tbl tbody tr:hover td{background:rgba(99,102,241,.04);}
+
+/* ─── Badge ─── */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.b-red{background:rgba(244,63,94,.1);color:#BE123C;border:1px solid rgba(244,63,94,.15);}
+.b-yellow{background:rgba(245,158,11,.1);color:#B45309;border:1px solid rgba(245,158,11,.15);}
+.b-green{background:rgba(16,185,129,.1);color:#047857;border:1px solid rgba(16,185,129,.15);}
+.b-blue{background:rgba(99,102,241,.1);color:#4338CA;border:1px solid rgba(99,102,241,.15);}
+.b-purple{background:rgba(139,92,246,.1);color:#6D28D9;border:1px solid rgba(139,92,246,.15);}
+.b-gray{background:rgba(156,163,175,.1);color:#374151;border:1px solid rgba(156,163,175,.18);}
+.b-teal{background:rgba(6,182,212,.1);color:#0E7490;border:1px solid rgba(6,182,212,.15);}
+.stars{color:var(--yellow);}
+
+/* ─── Source block ─── */
+.src-block{
+  padding:14px 18px;
+  background:rgba(255,255,255,.5);
+  backdrop-filter:blur(12px);
+  border-radius:var(--r-sm);
+  border:1px solid rgba(255,255,255,.7);
+  margin-top:10px;
+  box-shadow:var(--shadow-sm);
+}
+.src-lbl{font-size:10px;font-weight:700;color:var(--text-3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.src-chips{display:flex;flex-wrap:wrap;gap:7px;}
+.src-a{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 12px;
+  background:rgba(255,255,255,.7);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(200,210,240,.45);
+  border-radius:20px;font-size:11px;color:var(--accent);
+  text-decoration:none;transition:all .2s;
+}
+.src-a:hover{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(99,102,241,.3);}
+
+/* ─── Plotly 图表背景全透明强制覆盖 ─── */
+.plotly-graph-div,
+.plotly-graph-div .main-svg,
+.plotly-graph-div .main-svg > rect,
+.plotly-graph-div svg,
+.js-plotly-plot,
+.js-plotly-plot .plotly,
+.js-plotly-plot .svg-container {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+/* 图例背景磨砂化 */
+.plotly-graph-div .legend rect {
+  fill: rgba(255,255,255,0.45) !important;
+  rx: 6 !important;
+}
+/* 面积/柱图颜色略降饱和，更贴近iOS柔和感 */
+.plotly-graph-div .fills path {
+  opacity: 0.75 !important;
+}
+
+/* ─── 词云列滚动条 ─── */
+#word_cloud_grouped > div > div::-webkit-scrollbar{width:3px;}
+#word_cloud_grouped > div > div::-webkit-scrollbar-track{background:transparent;}
+#word_cloud_grouped > div > div::-webkit-scrollbar-thumb{background:rgba(180,190,230,.5);border-radius:3px;}
+#word_cloud_grouped > div > div::-webkit-scrollbar-thumb:hover{background:rgba(99,102,241,.4);}
+
+/* ─── 竞品矩阵表格 ─── */
+.comp-matrix-tbl td, .comp-matrix-tbl th{padding:8px 6px;}
+.comp-matrix-tbl tbody tr:hover td{background:rgba(99,102,241,.04);}
+.comp-matrix-tbl tbody tr:last-child td{
+  background:rgba(245,158,11,.06);
+  font-weight:600;
+}
+.comp-matrix-tbl tbody tr:last-child:hover td{background:rgba(245,158,11,.10);}
+
+/* ─── 数据来源移动端卡片列表（桌面隐藏） ─── */
+.sources-cards { display: none; }
+
+/* ─── 雷达图双列布局（全局） ─── */
+.radar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+}
+
+/* ─── tbl-wrap 全局横向滚动（不限移动端）─── */
+.tbl-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+}
+/* 所有直接 img / svg / plotly 不超出容器 */
+img, svg { max-width: 100%; }
+.js-plotly-plot, .plotly-graph-div { max-width: 100%; }
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(180,190,220,.4);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(99,102,241,.3);}
+
+/* ════════════════════════════════════════
+   📱 移动端响应式适配
+   ════════════════════════════════════════ */
+
+/* ─── 底部导航栏（移动端） ─── */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 400;
+  background: rgba(218,226,255,.92);
+  backdrop-filter: saturate(200%) blur(28px);
+  -webkit-backdrop-filter: saturate(200%) blur(28px);
+  border-top: 1px solid rgba(255,255,255,.65);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  display: none;
+  justify-content: space-around;
+  align-items: flex-end;
+}
+.mnav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  text-decoration: none;
+  color: var(--text-3);
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: color .2s;
+  min-width: 44px;
+  flex: 1;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+.mnav-item .mni { font-size: 18px; line-height: 1; }
+.mnav-item.active { color: var(--accent); }
+.mnav-item.active .mni {
+  filter: drop-shadow(0 0 4px rgba(99,102,241,.4));
+}
+
+/* ─── 移动端顶栏汉堡菜单按钮 ─── */
+.mob-menu-btn {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(200,210,240,.4);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ─── 移动端侧栏抽屉遮罩 ─── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 290;
+  background: rgba(20,30,80,.25);
+  backdrop-filter: blur(2px);
+}
+.sidebar-overlay.open { display: block; }
+
+@media (max-width: 767px) {
+  /* 隐藏原侧边栏默认显示，改为抽屉 */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 500;
+    width: 220px;
+  }
+  .sidebar.mob-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(60,80,200,.18);
+  }
+
+  /* 顶栏适配 */
+  .topbar {
+    padding: 0 12px;
+    height: 48px;
+  }
+  .topbar .tb-right > *:not(:last-child):not(.live-dot):not(.tb-time) {
+    display: none;
+  }
+  .mob-menu-btn { display: flex; }
+
+  /* Main 区域去掉 sidebar 偏移 */
+  .main {
+    margin-left: 0;
+    padding: 12px 12px 90px;
+    width: 100%;
+  }
+
+  /* 底部导航栏显示 */
+  .mobile-nav { display: flex; }
+
+  /* 隐藏手机提示（让页面直接正常显示） */
+  #mobile-tip { display: none !important; }
+
+  /* 过滤栏 */
+  .filter-bar {
+    gap: 6px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  .filter-bar .filter-label { font-size: 9px; }
+  .filter-bar .filter-reset { padding: 4px 8px; font-size: 10px; }
+  .filter-info { display: none; }
+  .fselect { font-size: 11px; padding: 3px 20px 3px 8px; }
+
+  /* KPI 网格：2列 */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpi { padding: 12px 10px; }
+  .kpi-val { font-size: 20px; }
+  .kpi-lbl { font-size: 9px; }
+
+  /* 通用双列→单列 */
+  .g2 { grid-template-columns: 1fr; gap: 10px; }
+  .g3 { grid-template-columns: 1fr; gap: 10px; }
+  .g13 { grid-template-columns: 1fr; gap: 10px; }
+
+  /* 卡片 */
+  .card { padding: 12px; }
+  .card-title { font-size: 12px; }
+  .card-sub { font-size: 10px; }
+
+  /* 雷达图区域：单列 */
+  .radar-grid { grid-template-columns: 1fr; }
+  #ch_radar { width: 100%; }
+  #radar_insight { min-height: 120px; }
+
+  /* 表格横向滚动 */
+  .tbl { font-size: 11px; }
+  .tbl th, .tbl td { padding: 7px 8px; white-space: nowrap; }
+
+  /* 数据来源表格：移动端改为卡片列表 */
+  .sources-tbl-wrap { display: none; }
+  .sources-cards { display: block; }
+
+  /* 产品/新闻表格：允许横向滚动提示 */
+  .tbl-wrap::after {
+    content: "← 左右滑动查看更多 →";
+    display: block;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(140,150,190,.7);
+    padding: 4px 0 2px;
+  }
+
+  /* 新闻表格移动端：隐藏来源列，让标题有空间 */
+  #news_tbody tr td:nth-child(6),
+  #news_tbody tr td:nth-child(5),
+  .tbl thead tr th:nth-child(6),
+  .tbl thead tr th:nth-child(5) { display: none; }
+
+  /* 词云 */
+  #word_cloud_grouped { overflow-x: auto; }
+
+  /* 来源区块 chip 换行 */
+  .src-chips { gap: 5px; }
+  .src-a { font-size: 10px; padding: 3px 8px; }
+
+  /* 隐藏 section 右侧 sec-tag（移动端没空间） */
+  .sec-hd .sec-tag { display: none; }
+
+  /* 图表高度收缩，禁止触摸缩放 */
+  .plotly-graph-div { max-width: 100%; }
+  .js-plotly-plot, .plotly-graph-div {
+    touch-action: none !important;
+    pointer-events: none !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .kpi-val { font-size: 17px; }
+  .main { padding: 10px 8px 88px; }
+}
+
+/* ─── 横屏平板（768~1024px）两列适配 ─── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --sidebar-w: 160px; }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .kpi-val { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 侧栏遮罩（移动端抽屉） -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<!-- 底部导航栏（移动端） -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mnav-item active" onclick="mnavGo('#kpi',this)"><span class="mni">📊</span>KPI</button>
+  <button class="mnav-item" onclick="mnavGo('#shipment',this)"><span class="mni">📦</span>出货量</button>
+  <button class="mnav-item" onclick="mnavGo('#share',this)"><span class="mni">🥧</span>市占率</button>
+  <button class="mnav-item" onclick="mnavGo('#products',this)"><span class="mni">🆚</span>竞品</button>
+  <button class="mnav-item" onclick="mnavGo('#sentiment',this)"><span class="mni">🔥</span>热词</button>
+  <button class="mnav-item" onclick="openSidebar()"><span class="mni">☰</span>更多</button>
+</nav>
+
+<!-- ════ SIDEBAR ════ -->
+<nav class="sidebar">
+  <div class="sb-brand-row">
+    <div class="sb-brand-icon">🎧</div>
+    <div>
+      <div class="sb-brand-name">TWS Dashboard</div>
+      <div class="sb-brand-sub">品类 PM · 竞品追踪</div>
+    </div>
+  </div>
+  <div class="sb-section">核心数据</div>
+  <a class="sb-item active" href="#kpi"><span class="ic">📊</span>核心 KPI</a>
+  <a class="sb-item" href="#financial"><span class="ic">💰</span>Brand X 财务指标</a>
+
+  <div class="sb-section">市场分析</div>
+  <a class="sb-item" href="#shipment"><span class="ic">📦</span>出货量追踪<span class="sb-badge">实时</span></a>
+  <a class="sb-item" href="#share"><span class="ic">🥧</span>市占率份额<span class="sb-badge">实时</span></a>
+
+  <div class="sb-section">竞品分析</div>
+  <a class="sb-item" href="#products"><span class="ic">🆚</span>产品 & 价格对比<span class="sb-badge">实时</span></a>
+  <a class="sb-item" href="#products" onclick="setTimeout(()=>document.querySelector('#comp_matrix')?.scrollIntoView({behavior:'smooth',block:'start'}),100)"><span class="ic">📐</span>多维度拆解</a>
+  <a class="sb-item" href="#radar"><span class="ic">🕸️</span>维度评分雷达</a>
+
+  <div class="sb-section">行业 & 消费者</div>
+  <a class="sb-item" href="#news"><span class="ic">📰</span>供应链 & 新品动向<span class="sb-badge">实时</span></a>
+  <a class="sb-item" href="#sentiment"><span class="ic">🔥</span>热搜词洞察<span class="sb-badge">实时</span></a>
+
+  <div class="sb-section">索引</div>
+  <a class="sb-item" href="#sources"><span class="ic">🔗</span>数据来源</a>
+  <div class="sb-footer">
+    <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+      <span class="live-dot"></span>
+      <span>数据更新：<span id="ts2" style="color:var(--text-2);font-weight:600;"></span></span>
+    </div>
+    <span style="color:var(--green);font-weight:600;">绿色</span> 真实抓取 ·
+    <span style="color:var(--yellow);font-weight:600;">⚠</span> 模拟示例
+  </div>
+</nav>
+
+<!-- ════ TOPBAR ════ -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <a href="https://yuan808.github.io" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:99px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:inherit;text-decoration:none;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      主页
+    </a>
+    <button class="mob-menu-btn" onclick="openSidebar()" aria-label="打开菜单">☰</button>
+    <div class="tb-brand">
+      <span class="tb-badge">Brand X</span>
+      <span style="font-size:11px;color:var(--text-3);margin-left:4px;">TWS 耳机品类</span>
+    </div>
+  </div>
+  <div class="tb-right">
+    <span style="font-size:11px;color:var(--text-3);">Canalys · JD · PDD · Taobao · IT之家</span>
+    <div style="width:1px;height:14px;background:var(--border2);"></div>
+    <span id="data-source-badge" style="font-size:10px;padding:2px 10px;border-radius:20px;border:1px solid transparent;background:transparent;color:var(--text-2);transition:all .4s;display:none;"></span>
+    <div style="width:1px;height:14px;background:var(--border2);"></div>
+    <span class="live-dot"></span>
+    <span class="tb-time" id="ts">-</span>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ════ TIME FILTER BAR ════ -->
+<div class="filter-bar">
+  <span class="filter-label">📅 数据范围</span>
+  <div class="fselect-wrap">
+    <select class="fselect" id="sel-from" onchange="onSelectChange()"></select>
+    <span class="frange-arrow">→</span>
+    <select class="fselect" id="sel-to" onchange="onSelectChange()"></select>
+  </div>
+  <div class="filter-sep"></div>
+  <span class="filter-label">快捷</span>
+  <button class="filter-reset" onclick="applyPreset('all')">全部</button>
+  <button class="filter-reset" onclick="applyPreset('2023')">2023</button>
+  <button class="filter-reset" onclick="applyPreset('2024')">2024</button>
+  <button class="filter-reset" onclick="applyPreset('2025')">2025</button>
+  <button class="filter-reset" onclick="applyPreset('2026')">2026</button>
+  <button class="filter-reset" onclick="applyPreset('last4')">最近4季</button>
+  <div class="filter-sep"></div>
+  <div class="filter-info">
+    <div class="filter-info-dot"></div>
+    当前视图：<span id="filter-display">-</span>
+    <span id="filter-count" style="color:var(--text-3);"></span>
+  </div>
+</div>
+
+<!-- §0 KPI -->
+<section class="section" id="kpi">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(99,102,241,.1);">📊</div>
+      <div class="sec-title">核心 KPI 总览</div>
+    </div>
+    <span class="sec-tag">⚠ 财务数据为模拟示例 · 市场数据来自 Canalys</span>
+  </div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="note ok" style="margin-top:12px;">✅ 全球市场数据来自 Canalys 2024 年度报告（via IT之家）；Brand X 财务数据为假设模拟，仅供框架展示。</div>
+</section>
+
+<section class="section" id="financial">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(16,185,129,.1);">💰</div>
+      <div class="sec-title">Brand X 财务指标</div>
+    </div>
+    <span class="sec-tag">⚠ 模拟示例数据 · 实际使用请接 BI 系统</span>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">季度营收 & 出货量</div>
+      <div class="card-sub" id="rev-sub">REV（左轴 M USD）/ 出货量（右轴 M台）</div>
+      <div id="ch_rev"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">AUR & 毛利率趋势</div>
+      <div class="card-sub" id="aur-sub">AUR（左轴 USD）/ 毛利率（右轴 %）</div>
+      <div id="ch_aur"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">季度净利润（M USD）</div>
+    <div class="card-sub">⚠ 均为模拟数据</div>
+    <div id="ch_profit"></div>
+  </div>
+</section>
+
+<section class="section" id="shipment">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(6,182,212,.1);">📦</div>
+      <div class="sec-title">竞品出货量追踪</div>
+      <span style="margin-left:6px;font-size:10px;background:rgba(16,185,129,.1);color:var(--green);padding:2px 8px;border-radius:20px;font-weight:700;">✓ 真实</span>
+    </div>
+    <span class="sec-tag">来源：Canalys 季度报告 2023Q1–2024Q4（真实） · 2025–2026（⚠ 模拟预测）</span>
+  </div>
+  <div class="card">
+    <div class="card-title">全球 TWS 耳机季度出货量（百万台）</div>
+    <div class="card-sub" id="ship-sub">堆叠面积图 · 苹果 / 三星 / 小米 / boAt / 华为 / 其他</div>
+    <div id="ch_ship"></div>
+  </div>
+  <div class="note ok">✅ 数据来自 Canalys 季度个人智能音频报告，经 IT之家、199IT、爱集微等媒体转载核实。</div>
+</section>
+
+<section class="section" id="share">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(245,158,11,.1);">🥧</div>
+      <div class="sec-title">市占率份额变动</div>
+      <span style="margin-left:6px;font-size:10px;background:rgba(16,185,129,.1);color:var(--green);padding:2px 8px;border-radius:20px;font-weight:700;">✓ 真实</span>
+    </div>
+    <span class="sec-tag">来源：Canalys 2024 全年 & Q4 数据</span>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title" id="pie-title">2024 全年市占率（全球）</div>
+      <div class="card-sub">苹果23% · 三星9% · 小米8% · boAt6% · 华为5% · <span style="color:#10B981;font-weight:700;">Brand X 1%</span> · 其他48%</div>
+      <div id="ch_pie_annual"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">2024Q3 vs Q4 市占率变化</div>
+      <div class="card-sub">苹果Q4回升至25%（+4pp）；小米维持增长</div>
+      <div id="ch_delta"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">中国市场 2024 全年市占率 TOP5</div>
+    <div class="card-sub">小米18%（+50% YoY）· 华为13% · 苹果13% · 漫步者 · 倍思 | 来源：Canalys</div>
+    <div id="ch_china"></div>
+  </div>
+  <div class="note ok">✅ 全球数据：Canalys 2024年度报告 · 中国数据：Canalys中国市场报告 · <a href="https://www.ithome.com/0/834/481.htm" target="_blank" style="color:var(--accent);">IT之家报道</a></div>
+</section>
+
+<section class="section" id="products">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(139,92,246,.1);">🆚</div>
+      <div class="sec-title">竞品产品对比</div>
+      <span style="margin-left:6px;font-size:10px;background:rgba(16,185,129,.1);color:var(--green);padding:2px 8px;border-radius:20px;font-weight:700;">✓ 真实</span>
+    </div>
+    <span class="sec-tag">来源：京东 / 天猫 / 各品牌官网 公开价格 2026-04</span>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr><th>品牌</th><th>型号</th><th>官方定价</th><th>价格来源</th><th>发布时间</th><th>核心亮点</th><th>平台评分</th><th>评论量</th><th>威胁程度</th></tr>
+        </thead>
+        <tbody id="prod_tbody"></tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:12px;">价格数据来自各品牌官网及京东/天猫旗舰店公开标价，截至 2026年4月。</div>
+  </div>
+
+  <!-- 多维度竞品分析 -->
+  <div style="margin-top:16px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="font-size:13px;font-weight:700;color:#1A1D40;">多维度竞品拆解</span>
+      <span class="sec-tag">功能 · 定价策略 · 外观 · 技术 · 销量 · 口碑 · 竞争策略</span>
+    </div>
+
+    <!-- 维度评分热力矩阵 -->
+    <div class="card" style="margin-bottom:14px;overflow-x:auto;">
+      <div class="card-title">📊 竞品维度评分矩阵（1-5分）</div>
+      <div class="card-sub">降噪 / 音质 / 续航 / 连接 / 性价比 / 外观 / 生态 / 技术创新</div>
+      <div id="comp_matrix" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- 三列详情卡 -->
+    <div class="g3" style="margin-bottom:14px;">
+      <div class="card">
+        <div class="card-title">💰 价格带分布 & 定价策略</div>
+        <div class="card-sub">各品牌价格区间与主攻用户群</div>
+        <div id="comp_price"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ 核心技术对比</div>
+        <div class="card-sub">芯片 / 降噪方案 / 连接协议 / 防水</div>
+        <div id="comp_tech"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📦 销量 & 市场表现</div>
+        <div class="card-sub">季度出货量 / 市占率 / YoY增速</div>
+        <div id="comp_sales"></div>
+      </div>
+    </div>
+
+    <!-- 口碑分析 + 外观 + Brand X策略 -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">💬 用户口碑分析</div>
+        <div class="card-sub">京东/天猫评分 · 高频好评/差评词</div>
+        <div id="comp_review"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🎯 Brand X 竞争策略建议</div>
+        <div class="card-sub">基于竞品分析的差异化机会点</div>
+        <div id="comp_strategy"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="radar">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(245,158,11,.1);">🕸️</div>
+      <div class="sec-title">竞品维度评分雷达</div>
+    </div>
+    <span class="sec-tag">基于京东/天猫公开评分 & 行业评测（参考数据）</span>
+  </div>
+  <div class="card">
+    <div class="card-title">核心维度综合对比（满分 5 分）</div>
+    <div class="card-sub">点击下方维度标签，查看该维度的竞品深度分析 👇</div>
+    <!-- 维度 Chip 标签 -->
+    <div id="radar_chips" style="display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 14px;"></div>
+    <!-- 雷达图 + 分析面板 双列 -->
+    <div class="radar-grid">
+      <div id="ch_radar"></div>
+      <div id="radar_insight" style="min-height:380px;display:flex;align-items:center;justify-content:center;">
+        <div style="text-align:center;color:#8B92B8;">
+          <div style="font-size:32px;margin-bottom:8px;">👆</div>
+          <div style="font-size:12px;">点击上方维度标签<br>查看深度分析</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">参考来源：京东/天猫商品评分 + 中关村在线/ZEALER/B站评测汇总推算。评分为综合估算，非官方认证数值。</div>
+</section>
+
+<section class="section" id="news">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(244,63,94,.1);">📰</div>
+      <div class="sec-title">供应链资讯 & 新品动向</div>
+      <span style="margin-left:6px;font-size:10px;background:rgba(16,185,129,.1);color:var(--green);padding:2px 8px;border-radius:20px;font-weight:700;">✓ 真实</span>
+    </div>
+    <span class="sec-tag">来源：36kr · IT之家 · 潮电智库 · MSN科技</span>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>日期</th><th>类别</th><th>标题</th><th>摘要</th><th>影响</th><th>来源</th></tr></thead>
+        <tbody id="news_tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="sentiment">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(99,102,241,.1);">💬</div>
+      <div class="sec-title">消费者洞察 · 淘宝热搜词</div>
+      <span id="insight-status-tag" style="margin-left:6px;font-size:10px;background:rgba(245,158,11,.1);color:#B45309;padding:2px 8px;border-radius:20px;font-weight:700;border:1px solid rgba(245,158,11,.3);transition:all .3s;">⏳ 实时抓取中...</span>
+    </div>
+    <span class="sec-tag">来源：淘宝 Suggest API</span>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">🔥 Top 15 搜索热词排行</div>
+      <div class="card-sub">淘宝实时热度排名 · 颜色区分词类</div>
+      <div id="svg_top15"></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:0;">
+      <div class="card-title">📊 需求结构分布</div>
+      <div class="card-sub">各类别累计搜索热度占比</div>
+      <div id="cat_badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+      <div id="ch_cat" style="height:180px;flex-shrink:0;"></div>
+      <div style="margin-top:12px;background:var(--surface2);border-radius:var(--r-sm);padding:14px;border:1px solid var(--border2);flex:1;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-1);margin-bottom:8px;">💡 洞察摘要</div>
+        <ul style="font-size:12px;color:var(--text-2);line-height:2.1;padding-left:16px;list-style:disc;">
+          <li><b>功能需求</b>热度最高：游戏/降噪/运动是三大核心场景</li>
+          <li><b>形态词</b>：骨传导、开放式、夹耳均进热搜，多元化加速</li>
+          <li><b>配件词</b>（保护套）热度极高，换新意愿强</li>
+          <li><b>品牌词</b>以华为/索尼/vivo为主</li>
+          <li>「2026新款」进入通用词，年度换新意识明显</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">🏷️ 消费者关键词全览（按类别分组）</div>
+    <div class="card-sub">全部词条展示 · 每列可上下滚动 · 序号前3高亮 · 右侧进度条 = 相对热度</div>
+    <div id="word_cloud_grouped"></div>
+  </div>
+  <div class="note ok">✅ 数据由淘宝 Suggest API 实时抓取（10个查询词）。更新时间：<span id="ts3"></span></div>
+</section>
+
+<section class="section" id="sources">
+  <div class="sec-hd">
+    <div class="sec-left">
+      <div class="sec-icon" style="background:rgba(156,163,175,.1);">🔗</div>
+      <div class="sec-title">数据来源索引</div>
+    </div>
+    <span class="sec-tag">每个模块的数据类型与原始出处一览</span>
+  </div>
+
+  <!-- 图例说明 -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;background:rgba(255,255,255,.45);border-radius:12px;border:1px solid rgba(255,255,255,.7);">
+    <span style="font-size:11px;color:var(--text-2);">数据类型说明：</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">✓ 真实</span> 来自公开报告/媒体转载，有据可查</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="background:#6366F1;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">⚡ 实时</span> 每次打开页面自动抓取</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="background:#F59E0B;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">🤖 爬虫</span> GitHub Actions 每日自动更新</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="background:#06B6D4;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">🔌 API</span> 调用公开接口，无需后端中转</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:11px;"><span style="background:#8B92B8;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">⚠ Mock</span> 模拟示例，需接真实 BI 数据</span>
+  </div>
+
+  <!-- 数据来源表格 -->
+  <div class="card" style="padding:0;">
+    <div class="tbl-wrap sources-tbl-wrap">
+    <table class="tbl" style="font-size:11px;">
+      <thead>
+        <tr>
+          <th style="width:130px;">功能模块</th>
+          <th style="width:90px;">数据类型</th>
+          <th>原始来源（含链接）</th>
+          <th style="width:120px;">更新频率</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 核心 KPI -->
+        <tr>
+          <td><b>📊 核心 KPI</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">出货量·营收·AUR·毛利率·净利</div></td>
+          <td>
+            <span style="background:#8B92B8;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">⚠ Mock</span><br>
+            <span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:3px;display:inline-block;">✓ 真实</span>
+          </td>
+          <td>
+            Brand X 财务数据为模拟示例；全球市场数据来自
+            <a href="https://canalys.com/newsroom" target="_blank" style="color:var(--accent);">Canalys 官方 Newsroom</a>
+            2024 年度报告，经
+            <a href="https://www.ithome.com/0/834/481.htm" target="_blank" style="color:var(--accent);">IT之家转载报道</a>核实
+          </td>
+          <td style="color:var(--text-3);">季度更新</td>
+        </tr>
+        <!-- Brand X 财务 -->
+        <tr style="background:rgba(245,158,11,.04);">
+          <td><b>💰 Brand X 财务指标</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">营收·出货量·AUR·毛利率·净利润</div></td>
+          <td><span style="background:#8B92B8;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">⚠ Mock</span></td>
+          <td>全部为模拟假设数据，仅供框架展示。实际使用请替换为内部 BI 系统数据（如美团数据平台 / Tableau 等）。</td>
+          <td style="color:var(--text-3);">手动维护</td>
+        </tr>
+        <!-- 出货量 -->
+        <tr>
+          <td><b>📦 竞品出货量追踪</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">2023–2026 各品牌季度出货</div></td>
+          <td>
+            <span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">✓ 真实</span><br>
+            <span style="background:#8B92B8;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:3px;display:inline-block;">⚠ Mock</span>
+          </td>
+          <td>
+            2023Q1–2024Q4：<a href="https://www.ithome.com/0/834/481.htm" target="_blank" style="color:var(--accent);">IT之家 · Canalys 2024年报</a> ·
+            <a href="https://www.199it.com/archives/1729563.html" target="_blank" style="color:var(--accent);">199IT Q3报告</a> ·
+            <a href="https://www.eefocus.com/article/1807883.html" target="_blank" style="color:var(--accent);">电子发烧友 Q4报告</a><br>
+            <span style="color:var(--text-3);">2025–2026：基于 Canalys 增长趋势推算的模拟预测，非真实数据</span>
+          </td>
+          <td style="color:var(--text-3);">季度更新</td>
+        </tr>
+        <!-- 市占率 -->
+        <tr>
+          <td><b>🥧 市占率份额</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">全球·Q3 vs Q4·中国市场</div></td>
+          <td><span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">✓ 真实</span></td>
+          <td>
+            <a href="https://canalys.com/newsroom" target="_blank" style="color:var(--accent);">Canalys 2024全年报告 & Q4专项报告</a>，经
+            <a href="https://www.ithome.com/0/834/481.htm" target="_blank" style="color:var(--accent);">IT之家</a> ·
+            <a href="https://www.eefocus.com/article/1807883.html" target="_blank" style="color:var(--accent);">电子发烧友</a> ·
+            <a href="https://www.199it.com/archives/1729563.html" target="_blank" style="color:var(--accent);">199IT</a> 媒体核实转载
+          </td>
+          <td style="color:var(--text-3);">季度更新</td>
+        </tr>
+        <!-- 竞品产品对比 -->
+        <tr>
+          <td><b>🆚 产品 & 价格对比</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">定价·核心亮点·平台评分</div></td>
+          <td>
+            <span style="background:#F59E0B;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">🤖 爬虫</span><br>
+            <span style="background:#06B6D4;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:3px;display:inline-block;">🔌 API</span><br>
+            <span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:3px;display:inline-block;">✓ 真实</span>
+          </td>
+          <td>
+            <b style="color:var(--text-2);">价格（API）：</b>直接调用
+            <a href="https://p.3.cn/prices/mgets?skuIds=J_100046036924" target="_blank" style="color:var(--accent);">京东价格接口 <code style="font-size:9px;background:rgba(6,182,212,.1);padding:0 4px;border-radius:3px;">p.3.cn/prices/mgets</code></a>，无需登录，公开可用<br>
+            <b style="color:var(--text-2);">评分（API）：</b><a href="https://club.jd.com/comment/productCommentSummaries.action?referenceIds=100046036924" target="_blank" style="color:var(--accent);">京东评论汇总接口 <code style="font-size:9px;background:rgba(6,182,212,.1);padding:0 4px;border-radius:3px;">club.jd.com/comment</code></a><br>
+            <b style="color:var(--text-2);">拼多多价格（爬虫）：</b><a href="https://mobile.yangkeduo.com/search_result.html?search_key=TWS耳机" target="_blank" style="color:var(--accent);">拼多多搜索结果页</a>，Playwright 抓取<br>
+            <b style="color:var(--text-2);">亮点描述：</b>
+            <a href="https://www.apple.com.cn/airpods-pro/" target="_blank" style="color:var(--accent);">苹果</a> ·
+            <a href="https://consumer.huawei.com/cn/audio/freebuds-pro-4/" target="_blank" style="color:var(--accent);">华为</a> ·
+            <a href="https://www.mi.com/earphone" target="_blank" style="color:var(--accent);">小米</a> ·
+            <a href="https://www.samsung.com/cn/audio-sound/galaxy-buds/" target="_blank" style="color:var(--accent);">三星</a>官网
+          </td>
+          <td style="color:var(--text-3);">每日 2 次（爬虫）<br>价格/评分实时（API）</td>
+        </tr>
+        <!-- 多维度拆解 -->
+        <tr>
+          <td><b>📐 多维度竞品拆解</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">热力矩阵·价格带·技术·销量·口碑</div></td>
+          <td><span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">✓ 真实</span></td>
+          <td>
+            评分综合自
+            <a href="https://www.jd.com" target="_blank" style="color:var(--accent);">京东</a> /
+            <a href="https://www.tmall.com" target="_blank" style="color:var(--accent);">天猫</a>公开评分 +
+            <a href="https://www.zol.com.cn/earphone/bluetooth/" target="_blank" style="color:var(--accent);">中关村在线</a> ·
+            <a href="https://www.bilibili.com/video/BV1xx411c7mD" target="_blank" style="color:var(--accent);">B站ZEALER评测</a><br>
+            技术参数：<a href="https://www.apple.com.cn/airpods-pro/specs/" target="_blank" style="color:var(--accent);">苹果规格页</a> ·
+            <a href="https://consumer.huawei.com/cn/audio/freebuds-pro-4/specs/" target="_blank" style="color:var(--accent);">华为规格页</a> ·
+            <a href="https://www.sony.com.cn/product/wf-1000xm5/specification" target="_blank" style="color:var(--accent);">索尼规格页</a><br>
+            销量数据：<a href="https://canalys.com/newsroom" target="_blank" style="color:var(--accent);">Canalys 季度报告</a>
+          </td>
+          <td style="color:var(--text-3);">手动季度更新</td>
+        </tr>
+        <!-- 维度评分雷达 -->
+        <tr>
+          <td><b>🕸️ 维度评分雷达</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">7维度综合对比</div></td>
+          <td><span style="background:#10B981;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">✓ 真实</span></td>
+          <td>
+            基于
+            <a href="https://www.jd.com" target="_blank" style="color:var(--accent);">京东</a> /
+            <a href="https://www.tmall.com" target="_blank" style="color:var(--accent);">天猫</a>公开评分 +
+            <a href="https://www.zol.com.cn/earphone/bluetooth/" target="_blank" style="color:var(--accent);">中关村在线</a> ·
+            <a href="https://zealer.com" target="_blank" style="color:var(--accent);">ZEALER</a> ·
+            B站评测汇总推算<br>
+            <span style="color:var(--text-3);">注：评分为综合估算值，非各平台官方认证数值</span>
+          </td>
+          <td style="color:var(--text-3);">手动季度更新</td>
+        </tr>
+        <!-- 供应链资讯 -->
+        <tr>
+          <td><b>📰 供应链 & 新品动向</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">行业新闻·发布动态</div></td>
+          <td><span style="background:#F59E0B;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">🤖 爬虫</span></td>
+          <td>
+            爬虫解析 RSS Feed，按 TWS 关键词过滤后自动分类影响级别：<br>
+            <a href="https://36kr.com/feed" target="_blank" style="color:var(--accent);">36kr RSS</a> ·
+            <a href="https://www.ithome.com/rss/" target="_blank" style="color:var(--accent);">IT之家 RSS</a> ·
+            <a href="http://www.199it.com/feed" target="_blank" style="color:var(--accent);">199IT RSS</a>
+          </td>
+          <td style="color:var(--text-3);">每日 2 次（爬虫）</td>
+        </tr>
+        <!-- 热搜词洞察 -->
+        <tr>
+          <td><b>🔥 热搜词洞察</b><div style="font-size:9px;color:var(--text-3);margin-top:2px;">淘宝实时热词·需求结构</div></td>
+          <td>
+            <span style="background:#06B6D4;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;">🔌 API</span><br>
+            <span style="background:#6366F1;color:#fff;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:3px;display:inline-block;">⚡ 实时</span>
+          </td>
+          <td>
+            客户端直接调用
+            <a href="https://suggest.taobao.com/sug?q=TWS耳机&code=utf-8" target="_blank" style="color:var(--accent);">淘宝 Suggest API（JSONP）<code style="font-size:9px;background:rgba(6,182,212,.1);padding:0 4px;border-radius:3px;">suggest.taobao.com/sug</code></a><br>
+            每次打开页面自动抓取 8 个关键词，无跨域限制（JSONP），无需后端中转，实时返回热词联想排序
+          </td>
+          <td style="color:var(--text-3);">每次打开页面（实时）</td>
+        </tr>
+      </tbody>
+    </table>
+    </div><!-- /tbl-wrap -->
+  </div>
+
+  <!-- 移动端卡片版数据来源 -->
+  <div class="sources-cards">
+    <style>
+      .src-row{background:rgba(255,255,255,.42);border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(255,255,255,.7);}
+      .src-row-title{font-size:12px;font-weight:700;color:#1A1D40;margin-bottom:4px;}
+      .src-row-sub{font-size:10px;color:var(--text-3);margin-bottom:6px;}
+      .src-row-body{font-size:11px;color:#4A5070;line-height:1.7;}
+      .src-row-body a{color:var(--accent);}
+      .src-row-freq{display:inline-block;margin-top:5px;font-size:10px;color:var(--text-3);background:rgba(180,190,220,.15);padding:1px 8px;border-radius:10px;}
+    </style>
+    <div class="src-row">
+      <div class="src-row-title">📊 核心 KPI</div>
+      <div class="src-row-sub">出货量·营收·AUR·毛利率·净利 &nbsp;<span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span> <span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body">Brand X 财务为模拟数据；市场数据来自 <a href="https://www.ithome.com/0/834/481.htm" target="_blank">Canalys 2024年报（IT之家）</a></div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">💰 Brand X 财务指标</div>
+      <div class="src-row-sub">营收·出货量·AUR·毛利率·净利润 &nbsp;<span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span></div>
+      <div class="src-row-body">全部为模拟假设数据，仅供框架展示</div>
+      <span class="src-row-freq">手动维护</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">📦 竞品出货量追踪</div>
+      <div class="src-row-sub">2023–2026 各品牌季度出货 &nbsp;<span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span> <span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span></div>
+      <div class="src-row-body"><a href="https://www.ithome.com/0/834/481.htm" target="_blank">IT之家·Canalys 2024年报</a>；2025–2026为模拟预测</div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🥧 市占率份额</div>
+      <div class="src-row-sub">全球·Q3 vs Q4·中国市场 &nbsp;<span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body"><a href="https://www.ithome.com/0/834/481.htm" target="_blank">Canalys 2024全年 & Q4报告（IT之家）</a></div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🆚 产品 & 价格对比</div>
+      <div class="src-row-sub">定价·核心亮点·评分 &nbsp;<span style="background:#F59E0B;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">爬虫</span> <span style="background:#06B6D4;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">API</span> <span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body">京东价格/评分 API · 拼多多爬虫 · 品牌官网公开信息</div>
+      <span class="src-row-freq">每日更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">📰 供应链 & 新品动向</div>
+      <div class="src-row-sub">行业新闻·发布动态 &nbsp;<span style="background:#F59E0B;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">爬虫</span></div>
+      <div class="src-row-body"><a href="https://36kr.com/feed" target="_blank">36kr RSS</a> · <a href="https://www.ithome.com/rss/" target="_blank">IT之家 RSS</a> · <a href="http://www.199it.com/feed" target="_blank">199IT RSS</a></div>
+      <span class="src-row-freq">每日2次</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🔥 热搜词洞察</div>
+      <div class="src-row-sub">淘宝实时热词 &nbsp;<span style="background:#06B6D4;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">API</span> <span style="background:#6366F1;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">实时</span></div>
+      <div class="src-row-body">淘宝 Suggest API（JSONP），每次打开页面自动抓取</div>
+      <span class="src-row-freq">每次打开</span>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:12px;">
+    ⚠ Mock 数据仅供仪表板框架演示。部署爬虫后（见 <code style="font-size:10px;background:rgba(99,102,241,.1);padding:1px 5px;border-radius:4px;">.github/workflows/scraper.yml</code>），商品价格、评分、资讯将自动替换为真实数据，顶栏状态由「⚠ 演示数据」变为「🟢 实时数据」。
+  </div>
+</section>
+
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════
+// ① 完整数据集（所有季度）
+// ════════════════════════════════════════
+const ALL_Q = ["23Q1","23Q2","23Q3","23Q4","24Q1","24Q2","24Q3","24Q4","25Q1","25Q2","25Q3","25Q4","26Q1","26Q2","26Q3","26Q4"];
+const ALL_TOTAL = [61.6,68.2,78.0,90.0,65.0,72.0,92.3,96.0, 68.0,76.5,98.0,103.0, 71.0,80.0,105.0,110.0];
+const ALL_BRANDS_SHIP = {
+  "苹果 AirPods":     [17.9,15.0,19.5,22.5,15.6,15.8,19.4,24.0, 16.5,16.8,21.0,26.0, 17.2,17.8,22.5,28.0],
+  "三星 Galaxy Buds": [4.9, 5.5, 6.2, 7.6, 4.9, 5.8, 8.3, 8.6,  5.2, 6.1, 9.0, 9.2,  5.4, 6.5, 9.5, 9.8],
+  "小米 Redmi Buds":  [3.7, 3.4, 4.7, 5.4, 3.9, 4.3, 5.9, 7.7,  4.2, 4.8, 6.5, 8.3,  4.5, 5.2, 7.0, 9.0],
+  "boAt":             [2.5, 3.7, 3.9, 3.6, 2.6, 3.2, 4.0, 4.8,  2.8, 3.4, 4.3, 5.0,  2.9, 3.6, 4.6, 5.3],
+  "华为 FreeBuds":    [1.8, 2.1, 2.5, 3.2, 2.3, 2.9, 3.5, 3.8,  2.5, 3.1, 3.9, 4.2,  2.7, 3.3, 4.2, 4.5],
+  "Brand X":          [1.8, 2.0, 2.3, 2.7, 2.1, 2.4, 2.8, 3.2,  2.4, 2.8, 3.4, 4.0,  2.7, 3.2, 3.9, 4.5],
+  "其他":             [29.0,36.5,38.9,45.0,33.6,37.6,48.4,43.9, 34.4,39.5,49.9,46.3, 35.6,40.4,53.3,49.9],
+};
+// 堆叠面积图配色：柔和rgba，降饱和适当透明
+const BRAND_COLORS = {
+  "苹果 AirPods":"rgba(99,102,241,0.72)","三星 Galaxy Buds":"rgba(6,182,212,0.68)",
+  "小米 Redmi Buds":"rgba(245,158,11,0.72)","boAt":"rgba(139,92,246,0.68)",
+  "华为 FreeBuds":"rgba(244,63,94,0.68)",
+  "Brand X":"rgba(16,185,129,0.82)",
+  "其他":"rgba(190,200,230,0.5)"
+};
+const SHARE_ANN  = {苹果:23,三星:9,小米:8,boAt:6,华为:5,"Brand X":1,其他:48};
+const SHARE_Q4   = {苹果:25,三星:9,小米:7,boAt:5,华为:4,"Brand X":1,其他:49};
+const SHARE_Q3   = {苹果:21,三星:9,小米:6,boAt:5,华为:4,"Brand X":1,其他:54};
+
+// BrandX 财务数据（模拟）
+const ALL_SX_Q  = ALL_Q;
+const ALL_SX_S  = [1.8,2.0,2.3,2.7,2.1,2.4,2.8,3.2, 2.4,2.8,3.4,4.0, 2.7,3.2,3.9,4.5];
+const ALL_SX_R  = [126,144,170,203,159,187,224,262,  194,227,285,348, 226,272,344,423];
+const ALL_SX_A  = [70,72,74,75,76,78,80,82,           81,81,84,87,    84,85,88,94];
+const ALL_SX_G  = [28.2,29.1,30.4,31.2,30.8,31.5,32.1,33.0, 32.5,33.2,34.0,34.8, 34.2,35.0,35.8,36.5];
+const ALL_SX_NP = [15,18,22,28,23,27,33,42,           31,38,48,61,    40,52,65,80];
+
+// ════════════════════════════════════════
+// ② 时间筛选状态（起止季度下拉）
+// ════════════════════════════════════════
+// 季度显示标签 → 数据索引映射
+const Q_IDX = {};
+ALL_Q.forEach((q,i) => { Q_IDX[q] = i; });
+
+let idxFrom = 0;               // 当前起始索引
+let idxTo   = ALL_Q.length-1;  // 当前结束索引
+
+// 初始化两个 <select>
+function initSelects() {
+  const sf = document.getElementById("sel-from");
+  const st = document.getElementById("sel-to");
+  sf.innerHTML = ""; st.innerHTML = "";
+  ALL_Q.forEach((q,i) => {
+    sf.innerHTML += `<option value="${i}" ${i===idxFrom?"selected":""}>${q}</option>`;
+    st.innerHTML += `<option value="${i}" ${i===idxTo  ?"selected":""}>${q}</option>`;
+  });
+  updateFilterDisplay();
+}
+
+function onSelectChange() {
+  const sf = document.getElementById("sel-from");
+  const st = document.getElementById("sel-to");
+  let f = parseInt(sf.value), t = parseInt(st.value);
+  // 如果 from > to，自动把 to 调到 from
+  if (f > t) { t = f; st.value = f; }
+  idxFrom = f; idxTo = t;
+  updateFilterDisplay();
+  refreshAllCharts();
+}
+
+function applyPreset(preset) {
+  const map = {
+    "all":   [0, ALL_Q.length-1],
+    "2023":  [0, 3],
+    "2024":  [4, 7],
+    "2025":  [8, 11],
+    "2026":  [12, 15],
+    "last4": [Math.max(0, ALL_Q.length-4), ALL_Q.length-1],
+  };
+  if (!map[preset]) return;
+  [idxFrom, idxTo] = map[preset];
+  document.getElementById("sel-from").value = idxFrom;
+  document.getElementById("sel-to").value   = idxTo;
+  // 高亮当前激活的快捷按钮
+  document.querySelectorAll(".filter-reset").forEach(b => {
+    b.classList.toggle("active-preset", b.getAttribute("onclick") === `applyPreset('${preset}')`);
+  });
+  updateFilterDisplay();
+  refreshAllCharts();
+}
+
+function updateFilterDisplay() {
+  const cnt = idxTo - idxFrom + 1;
+  document.getElementById("filter-display").textContent =
+    `${ALL_Q[idxFrom]}  →  ${ALL_Q[idxTo]}`;
+  document.getElementById("filter-count").textContent =
+    `（共 ${cnt} 个季度）`;
+}
+
+// ── 根据当前起止索引切片数据
+function getViewData() {
+  const labels = ALL_Q.slice(idxFrom, idxTo+1);
+
+  function sl(arr) { return arr.slice(idxFrom, idxTo+1); }
+  // AUR / 毛利率取均值，其余取原始值（逐季展示）
+  return {
+    labels,
+    total:  sl(ALL_TOTAL),
+    brands: Object.fromEntries(
+      Object.entries(ALL_BRANDS_SHIP).map(([b,v]) => [b, sl(v)])
+    ),
+    sx_s:  sl(ALL_SX_S),
+    sx_r:  sl(ALL_SX_R),
+    sx_a:  sl(ALL_SX_A),
+    sx_g:  sl(ALL_SX_G),
+    sx_np: sl(ALL_SX_NP),
+  };
+}
+
+// ════════════════════════════════════════
+// ④ Plotly 公共配置
+// ════════════════════════════════════════
+const CONF = {
+  displayModeBar: false,
+  responsive: true,
+  scrollZoom: false,
+  doubleClick: false,
+  showTips: false,
+  modeBarButtonsToRemove: ['zoom2d','pan2d','select2d','lasso2d','zoomIn2d','zoomOut2d','autoScale2d','resetScale2d','zoom3d','pan3d','orbitRotation','tableRotation','resetCameraDefault3d','resetCameraLastSave3d','hoverClosest3d','hoverClosestCartesian','hoverCompareCartesian','zoomInGeo','zoomOutGeo','resetGeo','hoverClosestGeo','hoverClosestGl2d','hoverClosestPie','toggleHover','resetViews','toggleSpikelines','resetViewMapbox'],
+  staticPlot: false,
+};
+const BASE = {
+  plot_bgcolor:"rgba(0,0,0,0)",
+  paper_bgcolor:"rgba(0,0,0,0)",
+  font:{family:"'Inter','SF Pro Display','PingFang SC',sans-serif", size:12, color:"#4A5070"},
+  hovermode: window.innerWidth < 768 ? false : "x unified",
+  hoverlabel:{bgcolor:"rgba(26,29,46,.88)", font:{color:"#fff",size:12}, bordercolor:"rgba(255,255,255,.15)", namelength:-1},
+  margin:{l:52,r:18,t:32,b:40},
+  dragmode: false,
+};
+// iOS 柔和配色 — 用实心色（图例色块显示正常），视觉上通过透明边框产生轻盈感
+const PIE_COLORS = ["#C8CAFF","#6366F1","#06B6D4","#F59E0B","#8B5CF6","#F43F5E","#10B981"];
+
+// ════════════════════════════════════════
+// ⑤ KPI 渲染
+// ════════════════════════════════════════
+function renderKPI() {
+  const vd = getViewData();
+  const n = vd.labels.length;
+  const lastR  = vd.sx_r[n-1],  prevR  = n>1 ? vd.sx_r[n-2]  : lastR;
+  const lastNP = vd.sx_np[n-1], prevNP = n>1 ? vd.sx_np[n-2] : lastNP;
+  const lastA  = vd.sx_a[n-1],  prevA  = n>1 ? vd.sx_a[n-2]  : lastA;
+  const lastG  = vd.sx_g[n-1],  prevG  = n>1 ? vd.sx_g[n-2]  : lastG;
+  const lastS  = vd.sx_s[n-1],  prevS  = n>1 ? vd.sx_s[n-2]  : lastS;
+  const lastTot= vd.total[n-1];
+
+  function delta(cur, prev) {
+    const d = ((cur-prev)/prev*100).toFixed(1);
+    const cls = d>0?"up":d<0?"dn":"flat";
+    const arrow = d>0?"▲":d<0?"▼":"—";
+    return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(d)}%</span>`;
+  }
+
+  const kpis = [
+    {lbl:"出货量", val:`${lastS}M`, delta_html:delta(lastS,prevS), sub:`上期 ${n>1?prevS:"-"}M 台`, cls:""},
+    {lbl:"季度营收", val:`$${lastR}M`, delta_html:delta(lastR,prevR), sub:`上期 $${n>1?prevR:"-"}M`, cls:""},
+    {lbl:"AUR", val:`$${lastA}`, delta_html:`<span class="kpi-delta ${lastA>prevA?"up":lastA<prevA?"dn":"flat"}">${lastA>prevA?"▲":"▼"} $${Math.abs(lastA-prevA)}</span>`, sub:"平均售价 USD", cls:"kpi-accent"},
+    {lbl:"毛利率", val:`${lastG}%`, delta_html:`<span class="kpi-delta ${lastG>prevG?"up":"dn"}">${lastG>prevG?"▲":"▼"} ${Math.abs((lastG-prevG).toFixed(1))}pp</span>`, sub:"上期 "+prevG+"%", cls:"kpi-accent"},
+    {lbl:"净利润", val:`$${lastNP}M`, delta_html:delta(lastNP,prevNP), sub:`上期 $${n>1?prevNP:"-"}M`, cls:""},
+    {lbl:"全球市场", val:"3.32亿", delta_html:`<span class="kpi-delta up">▲ +13%</span>`, sub:"2024全年 · Canalys", cls:"kpi-warn"},
+  ];
+
+  document.getElementById("kpi-grid").innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div>${k.delta_html}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join("");
+}
+
+// ════════════════════════════════════════
+// ⑥ 图1：堆叠面积出货量
+// ════════════════════════════════════════
+function renderShip() {
+  const vd = getViewData();
+  const traces = Object.entries(vd.brands).map(([brand,vals])=>({
+    x: vd.labels, y: vals, name: brand,
+    stackgroup:"one", mode:"lines",
+    line:{width:1, color:BRAND_COLORS[brand], shape:"spline", smoothing:0.6},
+    fillcolor: BRAND_COLORS[brand],
+    opacity: 1,
+    hovertemplate:`${brand}: <b>%{y:.1f}M</b>台<extra></extra>`,
+  }));
+  Plotly.react("ch_ship", traces, {
+    ...BASE, height:340,
+    margin:{l:55,r:18,t:50,b:42},
+    xaxis:{title:"", tickangle:0, gridcolor:"rgba(180,190,220,.15)", tickfont:{size:10,color:"#4A5070"}, zerolinecolor:"rgba(0,0,0,0)", showline:false,
+      tickvals:vd.labels, ticktext:vd.labels.map(l=>l.slice(2))},
+    yaxis:{title:"", gridcolor:"rgba(180,190,220,.15)", tickfont:{size:10,color:"#8B92B8"}, ticksuffix:"M", zerolinecolor:"rgba(180,190,220,.2)", showline:false},
+    legend:{orientation:"h", yanchor:"bottom", y:1.02, xanchor:"center", x:0.5,
+      font:{size:11,color:"#4A5070"}, bgcolor:"rgba(0,0,0,0)", borderwidth:0},
+  }, CONF);
+  document.getElementById("ship-sub").textContent = `时间范围：${vd.labels[0]} ~ ${vd.labels[vd.labels.length-1]}`;
+}
+
+// ════════════════════════════════════════
+// ⑦ 图2a：年度市占环形
+// ════════════════════════════════════════
+function renderPie() {
+  const labels = Object.keys(SHARE_ANN);
+  const values = Object.values(SHARE_ANN);
+  // 颜色与数据顺序严格对齐：苹果/三星/小米/boAt/华为/Brand X/其他
+  const PIE_C = ["#6366F1","#06B6D4","#F59E0B","#8B5CF6","#F43F5E","#10B981","#C8CAFF"];
+  // 百分比：仅在 <30% 的扇形内显示，"其他"留空
+  const pctText = labels.map((l,i) => (values[i] >= 30 || l === "其他") ? "" : values[i]+"%");
+  Plotly.react("ch_pie_annual",[{
+    type:"pie", labels, values, hole:0.55,
+    marker:{ colors:PIE_C, line:{color:"rgba(235,240,255,0.85)",width:2} },
+    text: pctText,
+    textinfo:"text",
+    textposition:"inside",
+    textfont:{size:11,color:"#fff",family:"Inter,PingFang SC,sans-serif"},
+    hovertemplate:"<b>%{label}</b>：%{value}%<extra></extra>",
+    sort:false,
+    opacity:0.88,
+  }],{
+    ...BASE, height:300,
+    margin:{l:10,r:10,t:10,b:60},
+    showlegend:true,
+    legend:{
+      orientation:"h",
+      xanchor:"center", x:0.5,
+      yanchor:"top", y:-0.02,
+      font:{size:11,color:"#4A5070"},
+      bgcolor:"rgba(0,0,0,0)", borderwidth:0,
+      itemsizing:"constant"
+    },
+    annotations:[{
+      text:"<b>2024全年</b><br>全球市占",
+      x:0.5, y:0.5, showarrow:false,
+      font:{size:10,color:"#1A1D40"},
+      xanchor:"center", yanchor:"middle"
+    }]
+  }, CONF);
+}
+
+// ════════════════════════════════════════
+// ⑧ 图2b：Q3→Q4 分组柱
+// ════════════════════════════════════════
+function renderDelta() {
+  const brands = ["苹果","三星","小米","boAt","华为","Brand X"];
+  const q3 = [21,9,6,5,4,1], q4 = [25,9,7,5,4,1];
+  const delta = q4.map((v,i)=>+(v-q3[i]).toFixed(1));
+  const q4Colors = delta.map((v,i)=>brands[i]==="Brand X"?"rgba(16,185,129,0.88)":v>0?"rgba(16,185,129,0.78)":v<0?"rgba(244,63,94,0.78)":"rgba(139,92,246,0.72)");
+  Plotly.react("ch_delta",[
+    {type:"bar",name:"2024Q3",x:brands,y:q3,
+     marker:{color:"rgba(180,190,240,0.45)",line:{color:"rgba(200,210,250,0.8)",width:1.5}},
+     text:q3.map(v=>v+"%"),textposition:"inside",textfont:{size:10,color:"#4A5070"},
+     hovertemplate:"%{x} Q3: %{y}%<extra></extra>"},
+    {type:"bar",name:"2024Q4",x:brands,y:q4,
+     marker:{color:q4Colors,line:{color:"rgba(255,255,255,0.6)",width:1.5}},
+     text:q4.map((v,i)=>delta[i]!==0?`${v}% ${delta[i]>0?"+":""}${delta[i]}pp`:v+"%"),
+     textposition:"inside",textfont:{size:10,color:"rgba(255,255,255,0.92)"},
+     hovertemplate:"%{x} Q4: %{y}%<extra></extra>"},
+  ],{
+    ...BASE, height:310, barmode:"group",
+    bargap:0.25, bargroupgap:0.08,
+    margin:{l:40,r:18,t:36,b:40},
+    xaxis:{gridcolor:"rgba(180,190,220,.15)",tickfont:{size:12,color:"#4A5070"},zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+    yaxis:{title:"",range:[0,32],ticksuffix:"%",tickfont:{size:11,color:"#8B92B8"},gridcolor:"rgba(180,190,220,.15)",zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+    legend:{orientation:"h",yanchor:"bottom",y:1.02,xanchor:"center",x:0.5,
+      font:{size:11,color:"#4A5070"},bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+  }, CONF);
+}
+
+// ════════════════════════════════════════
+// ⑨ 图2c：中国市场条形
+// ════════════════════════════════════════
+function renderChina() {
+  const brands = ["小米","华为","苹果","漫步者","倍思"];
+  const share  = [18,13,13,6,5];
+  const yoy    = ["+50%","+31%","-1%","+18%","+22%"];
+  // 苹果由纯黑改为柔和蓝紫，其余保持rgba柔和色
+  const bColors= ["rgba(99,102,241,0.82)","rgba(244,63,94,0.78)","rgba(96,110,200,0.78)","rgba(139,92,246,0.78)","rgba(16,185,129,0.78)"];
+  const rev_b = [...brands].reverse(), rev_s = [...share].reverse();
+  const rev_y = [...yoy].reverse(), rev_c = [...bColors].reverse();
+
+  Plotly.react("ch_china",[{
+    type:"bar", orientation:"h",
+    y:rev_b, x:rev_s,
+    text:rev_s.map(v=>v+"%"), textposition:"inside", textfont:{size:12,color:"rgba(255,255,255,0.92)"},
+    cliponaxis:false,
+    marker:{color:rev_c, line:{color:"rgba(255,255,255,0.5)",width:1.5}},
+    customdata:rev_y,
+    hovertemplate:"<b>%{y}</b><br>市占率: %{x}%<br>YoY: %{customdata}<extra></extra>",
+  }],{
+    ...BASE, height:270,
+    margin:{l:68,r:20,t:20,b:42},
+    xaxis:{title:"市场份额（%）",range:[0,30],tickvals:[0,5,10,15,20],
+      ticktext:["0%","5%","10%","15%","20%"],gridcolor:"rgba(180,190,220,.15)",zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+    yaxis:{tickfont:{size:13,color:"#4A5070"},showline:false},
+    annotations: rev_b.map((b,i)=>({
+      x:rev_s[i]+0.4, y:i,
+      text:`<b>${rev_y[i]}</b>`,
+      showarrow:false,
+      font:{size:11, color:rev_y[i].startsWith("-")?"#F43F5E":"#10B981"},
+      xanchor:"left", yanchor:"middle",
+      bgcolor:rev_y[i].startsWith("-")?"rgba(244,63,94,.08)":"rgba(16,185,129,.08)",
+      bordercolor:rev_y[i].startsWith("-")?"#F43F5E":"#10B981",
+      borderwidth:1, borderpad:3,
+    })),
+  }, CONF);
+}
+
+// ════════════════════════════════════════
+// ⑩ 图4：REV & 出货量
+// ════════════════════════════════════════
+function renderRev() {
+  const vd = getViewData();
+  Plotly.react("ch_rev",[
+    {type:"bar", x:vd.labels, y:vd.sx_r, name:"营收（M USD）",
+     marker:{
+       // 蓝绿渐变：从青绿走向蓝
+       color:vd.labels.map((_,i)=>{
+         const t=i/(vd.labels.length-1||1);
+         const r=Math.round(16+t*(59-16)),g=Math.round(185+t*(130-185)),b=Math.round(129+t*(246-129));
+         return `rgba(${r},${g},${b},0.80)`;
+       }),
+       line:{color:"rgba(255,255,255,0.5)",width:1}
+     },
+     hovertemplate:"<b>%{x}</b><br>营收: $%{y}M<extra></extra>"},
+    {type:"scatter", x:vd.labels, y:vd.sx_s, name:"出货量（M台）",
+     mode:"lines+markers",
+     line:{color:"rgba(245,158,11,0.9)",width:2.5,shape:"spline",smoothing:0.8},
+     marker:{size:7,color:"rgba(255,255,255,0.95)",line:{color:"rgba(245,158,11,0.9)",width:2.5}},
+     hovertemplate:"<b>%{x}</b><br>出货: %{y:.1f}M台<extra></extra>",
+     yaxis:"y2"},
+  ],{
+    ...BASE, height:300,
+    bargap:0.3,
+    margin:{l:55,r:60,t:48,b:40},
+    xaxis:{tickangle:0,tickfont:{size:10,color:"#4A5070"},gridcolor:"rgba(180,190,220,.15)",showline:false,zerolinecolor:"rgba(0,0,0,0)",
+      tickvals:vd.labels, ticktext:vd.labels.map(l=>l.slice(2))},
+    yaxis:{title:"",gridcolor:"rgba(180,190,220,.15)",tickprefix:"$",tickfont:{size:10,color:"#8B92B8"},zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+    yaxis2:{title:"",overlaying:"y",side:"right",ticksuffix:"M",tickfont:{size:10,color:"#8B92B8"},showline:false},
+    legend:{orientation:"h",yanchor:"bottom",y:1.03,xanchor:"center",x:0.5,
+      font:{size:11,color:"#4A5070"},bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+  }, CONF);
+  document.getElementById("rev-sub").textContent = `时间范围：${vd.labels[0]} ~ ${vd.labels[vd.labels.length-1]}`;
+}
+
+// ════════════════════════════════════════
+// ⑪ 图5：AUR & 毛利率
+// ════════════════════════════════════════
+function renderAUR() {
+  const vd = getViewData();
+
+  // 动态计算 Y 轴范围：数据上下各留 15% padding，让趋势线居中
+  const aurMin = Math.min(...vd.sx_a), aurMax = Math.max(...vd.sx_a);
+  const aurPad = (aurMax - aurMin) * 0.8 || 5;
+  const aurRange = [Math.floor(aurMin - aurPad), Math.ceil(aurMax + aurPad * 0.5)];
+
+  const gmMin = Math.min(...vd.sx_g), gmMax = Math.max(...vd.sx_g);
+  const gmPad = (gmMax - gmMin) * 0.8 || 2;
+  const gmRange = [+(gmMin - gmPad).toFixed(1), +(gmMax + gmPad * 0.5).toFixed(1)];
+
+  Plotly.react("ch_aur",[
+    {type:"scatter", x:vd.labels, y:vd.sx_a, name:"AUR（USD）",
+     mode:"lines+markers",
+     fill:"none",
+     line:{color:"rgba(245,158,11,0.92)",width:2.5,shape:"spline",smoothing:0.8},
+     marker:{size:7,color:"rgba(255,255,255,0.95)",line:{color:"rgba(245,158,11,0.92)",width:2.5}},
+     hovertemplate:"<b>%{x}</b><br>AUR: $%{y}<extra></extra>"},
+    {type:"scatter", x:vd.labels, y:vd.sx_g, name:"毛利率（%）",
+     mode:"lines+markers",
+     fill:"none",
+     line:{color:"rgba(16,185,129,0.88)",width:2.5,shape:"spline",smoothing:0.8},
+     marker:{size:7,symbol:"circle",color:"rgba(255,255,255,0.95)",line:{color:"rgba(16,185,129,0.88)",width:2.5}},
+     hovertemplate:"<b>%{x}</b><br>毛利率: %{y:.1f}%<extra></extra>",
+     yaxis:"y2"},
+  ],{
+    ...BASE, height:300,
+    margin:{l:55,r:60,t:48,b:40},
+    xaxis:{tickangle:0,tickfont:{size:10,color:"#4A5070"},gridcolor:"rgba(180,190,220,.15)",showline:false,zerolinecolor:"rgba(0,0,0,0)",
+      tickvals:vd.labels, ticktext:vd.labels.map(l=>l.slice(2))},
+    yaxis:{title:"",range:aurRange,tickprefix:"$",gridcolor:"rgba(180,190,220,.15)",tickfont:{size:10,color:"#8B92B8"},zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+    yaxis2:{title:"",overlaying:"y",side:"right",range:gmRange,
+      ticksuffix:"%",gridcolor:"transparent",tickfont:{size:10,color:"#8B92B8"},showline:false},
+    legend:{orientation:"h",yanchor:"bottom",y:1.03,xanchor:"center",x:0.5,
+      font:{size:11,color:"#4A5070"},bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+  }, CONF);
+  document.getElementById("aur-sub").textContent = `时间范围：${vd.labels[0]} ~ ${vd.labels[vd.labels.length-1]}`;
+}
+
+// ════════════════════════════════════════
+// ⑫ 图6：净利润
+// ════════════════════════════════════════
+function renderProfit() {
+  const vd = getViewData();
+  const maxNP = Math.max(...vd.sx_np);
+  const n = vd.sx_np.length;
+  Plotly.react("ch_profit",[{
+    type:"bar", x:vd.labels, y:vd.sx_np,
+    marker:{
+      color: vd.sx_np.map((_,i)=>{
+        // 最后一根金色高亮，其余渐变：蓝绿→青绿
+        if(i===n-1) return "rgba(245,158,11,0.90)";
+        const t=i/(n-1||1);
+        const r=Math.round(6+t*(16-6)),g=Math.round(182+t*(185-182)),b=Math.round(212+t*(129-212));
+        return `rgba(${r},${g},${b},0.75)`;
+      }),
+      line:{color:"rgba(255,255,255,0.5)",width:1.5},
+    },
+    text:vd.sx_np.map(v=>`$${v}M`),
+    textposition:"inside", textfont:{size:10,color:"rgba(255,255,255,0.92)"},
+    insidetextanchor:"middle",
+    constraintext:"none",
+    hovertemplate:"<b>%{x}</b><br>净利润: $%{y}M<extra></extra>",
+  }],{
+    ...BASE, height:260,
+    bargap:0.3,
+    margin:{l:50,r:18,t:28,b:40},
+    xaxis:{tickangle:0,tickfont:{size:10,color:"#4A5070"},gridcolor:"rgba(180,190,220,.15)",showline:false,zerolinecolor:"rgba(0,0,0,0)",
+      tickvals:vd.labels, ticktext:vd.labels.map(l=>l.slice(2))},
+    yaxis:{title:"",range:[0,maxNP*1.18],
+      tickprefix:"$",ticksuffix:"M",gridcolor:"rgba(180,190,220,.15)",tickfont:{size:10,color:"#8B92B8"},zerolinecolor:"rgba(180,190,220,.2)",showline:false},
+  }, CONF);
+}
+
+// ════════════════════════════════════════
+// ⑬ 雷达图
+// ════════════════════════════════════════
+function renderRadar() {
+  const cats = ["降噪能力","续航时间","音质表现","佩戴舒适","连接稳定","性价比","外观工艺"];
+  const data = [
+    {name:"苹果 AirPods Pro 3", scores:[4.9,4.5,4.7,4.6,4.9,3.4,4.9], color:"#6366F1"},
+    {name:"索尼 WF-1000XM5",    scores:[5.0,4.7,5.0,4.2,4.6,3.7,4.5], color:"#06B6D4"},
+    {name:"华为 FreeBuds Pro 4", scores:[4.6,4.8,4.4,4.7,4.9,4.4,4.7], color:"#F43F5E"},
+    {name:"Brand X（模拟）",    scores:[4.2,4.5,4.3,4.8,4.5,4.7,4.5], color:"#10B981"},
+  ];
+  // 雷达图配色转成柔和rgba
+  const toSoftRgba=(hex,a)=>{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;};
+  const isMob = window.innerWidth < 768;
+  Plotly.react("ch_radar", data.map(d=>({
+    type:"scatterpolar",
+    r:[...d.scores,d.scores[0]], theta:[...cats,cats[0]],
+    fill:"toself",
+    fillcolor:toSoftRgba(d.color,0.08),
+    opacity:1,
+    line:{color:toSoftRgba(d.color,0.85),width:2}, name:d.name,
+    marker:{size:4,color:toSoftRgba(d.color,0.9)},
+    hovertemplate:`<b>${d.name}</b><br>%{theta}: %{r}<extra></extra>`,
+  })),{
+    ...BASE, height: isMob ? 320 : 400,
+    polar:{
+      bgcolor:"rgba(235,240,255,0.3)",
+      radialaxis:{visible:true,range:[3,5.2],gridcolor:"rgba(180,190,220,.2)",tickfont:{size:8,color:"#8B92B8"},tickcolor:"rgba(0,0,0,0)",linecolor:"rgba(180,190,220,.2)"},
+      angularaxis:{gridcolor:"rgba(180,190,220,.18)",linecolor:"rgba(180,190,220,.3)",tickfont:{size: isMob ? 9 : 10, color:"#4A5070"}}
+    },
+    showlegend:true,
+    legend:{font:{size: isMob ? 10 : 11, color:"#4A5070"},orientation:"h",yanchor:"bottom",y: isMob ? -0.42 : -0.22,xanchor:"center",x:.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+    margin: isMob ? {l:55,r:55,t:30,b:140} : {l:40,r:40,t:30,b:90},
+  }, CONF);
+}
+
+// ════════════════════════════════════════
+// ⑬-B 雷达维度点击分析
+// ════════════════════════════════════════
+const RADAR_DIM_INSIGHT = {
+  "降噪能力": {
+    icon: "🔇",
+    color: "#6366F1",
+    winner: "索尼 WF-1000XM5",
+    scores: [["苹果 AirPods Pro 3","4.9","行业顶尖，H3芯片双向ANC，实测可降40dB+"],
+             ["索尼 WF-1000XM5","5.0","业界标杆，QN1e处理器，低中高频均衡压制"],
+             ["华为 FreeBuds Pro 4","4.6","双麦50dB宣称，实测中低频表现优秀"],
+             ["三星 Galaxy Buds3 Pro","4.0","双向ANC够用，但与前三有差距"],
+             ["小米 Redmi Buds 8","3.0","50dB仅为宣传值，实测约25-30dB"],
+             ["Brand X 目标","4.2","目标40dB，中端价格带最强降噪定位"]],
+    summary: "降噪赛道苹果+索尼双雄垄断高端，华为依靠鸿蒙协同异军突起。中端 ¥500-999 价格带几乎无竞争，Brand X 主打「中端最强ANC」具有明显蓝海机会。",
+    brandx: "核心机会：¥799定价提供类旗舰降噪体验，主打「不买旗舰也能降噪自由」，重点打小米升级用户。建议ANC实测指标≥35dB，并在产品宣传中提供第三方测试背书。",
+    threat: "high"
+  },
+  "续航时间": {
+    icon: "🔋",
+    color: "#10B981",
+    winner: "华为 FreeBuds Pro 4",
+    scores: [["苹果 AirPods Pro 3","4.5","单次6h+充电仓30h，MagSafe充电便利"],
+             ["索尼 WF-1000XM5","4.7","单次8h+充电仓24h，行业均衡水平"],
+             ["华为 FreeBuds Pro 4","4.8","单次9h+充电仓30h，快充10分钟用3h"],
+             ["三星 Galaxy Buds3 Pro","4.2","单次6h+充电仓22h，略低于竞品"],
+             ["小米 Redmi Buds 8","4.0","单次9h续航不错，但充电仓容量较小"],
+             ["Brand X 目标","4.5","目标：单耳10h+充电仓50h = 60h总续航"]],
+    summary: "续航已成标配竞争点，华为凭借快充领先，但整体差异不大。「总续航时长」成为新的营销锚点，60h+已成消费者期望门槛。",
+    brandx: "差异化机会：主打「60小时续航」（单耳10h × 6次充电），以「一周不充电」为核心记忆点做传播。充电仓支持Type-C双向充电+低功耗蓝牙待机优化是可行技术路径。",
+    threat: "medium"
+  },
+  "音质表现": {
+    icon: "🎵",
+    color: "#8B5CF6",
+    winner: "索尼 WF-1000XM5",
+    scores: [["苹果 AirPods Pro 3","4.7","调音偏向人声清晰，支持空间音频，娱乐向调音"],
+             ["索尼 WF-1000XM5","5.0","LDAC 990kbps，顶级音质天花板，发烧友首选"],
+             ["华为 FreeBuds Pro 4","4.4","L2HC 2.0协议，华为生态内高解析，跨平台受限"],
+             ["三星 Galaxy Buds3 Pro","4.2","10mm单元表现一般，三星Galaxy内体验更佳"],
+             ["小米 Redmi Buds 8","3.2","AAC+11mm动圈，百元档音质尚可，解析力偏弱"],
+             ["Brand X 目标","4.3","目标：LDAC支持+11mm复合振膜，主打「中端最佳音质」"]],
+    summary: "音质赛道索尼一骑绝尘，LDAC成为高品质音频的代名词。中端用户开始追求LDAC，这是打差异化的核心技术门槛。",
+    brandx: "技术要求：必须支持LDAC，这是中高端音质的入场券。配合「复合振膜+专业调音」概念，请第三方声学实验室做音质评测报告，在B站/小红书做「盲测对比」内容营销。",
+    threat: "medium"
+  },
+  "佩戴舒适": {
+    icon: "👂",
+    color: "#F59E0B",
+    winner: "三星 Galaxy Buds3 Pro",
+    scores: [["苹果 AirPods Pro 3","4.6","三种耳帽尺寸，贴合度测试功能，长时间佩戴良好"],
+             ["索尼 WF-1000XM5","4.2","偏重（7.3g/只），长途通勤有酸胀感"],
+             ["华为 FreeBuds Pro 4","4.7","人体工学设计，5.9g轻量化，长时间舒适"],
+             ["三星 Galaxy Buds3 Pro","4.8","开放入耳设计减少耳压，8mm薄型仓体"],
+             ["小米 Redmi Buds 8","3.8","入耳式设计一般，长时间佩戴有压迫感"],
+             ["Brand X 目标","4.8","目标：5.5g以内，人体工学三维扫描设计"]],
+    summary: "佩戴舒适是用户长期留存的核心要素，也是退换货的首要原因。华为和三星在轻量化上领先，用户平均佩戴时长直接影响复购率。",
+    brandx: "产品设计建议：单只重量控制在5.5g以内，提供XS/S/M/L四种耳帽，引入「30分钟贴合度」自动检测功能。入耳角度和耳廓贴合是差异化设计点，建议邀请100+用户参与人体工学测试。",
+    threat: "medium"
+  },
+  "连接稳定": {
+    icon: "📡",
+    color: "#06B6D4",
+    winner: "苹果 / 华为",
+    scores: [["苹果 AirPods Pro 3","4.9","H3芯片，iCloud设备间无缝切换，延迟<10ms"],
+             ["索尼 WF-1000XM5","4.6","蓝牙5.3，稳定但多设备切换有延迟"],
+             ["华为 FreeBuds Pro 4","4.9","星闪协议（UWB级）低延迟，鸿蒙生态秒切换"],
+             ["三星 Galaxy Buds3 Pro","4.5","蓝牙5.4，Galaxy设备内稳定，跨平台一般"],
+             ["小米 Redmi Buds 8","3.5","蓝牙5.3，单设备稳定，多设备切换体验差"],
+             ["Brand X 目标","4.5","目标：蓝牙5.4+多点连接（同时连2台设备）"]],
+    summary: "连接稳定是「刚需」维度，苹果和华为通过私有协议建立壁垒。蓝牙5.4+多点连接是中端产品的技术门槛，低延迟游戏模式是年轻用户的强需求。",
+    brandx: "必备功能：蓝牙5.4，支持同时连接2台设备并无缝切换（手机+电脑场景）；游戏模式延迟≤50ms；主动重连算法避免断连。多点连接是当前市场中端产品的高频差评点，做好可形成口碑优势。",
+    threat: "low"
+  },
+  "性价比": {
+    icon: "💰",
+    color: "#F43F5E",
+    winner: "小米 Redmi Buds 8",
+    scores: [["苹果 AirPods Pro 3","2.0","¥1899定价，主打生态溢价，性价比不是卖点"],
+             ["索尼 WF-1000XM5","3.0","¥1799，音质定位，高端用户认可"],
+             ["华为 FreeBuds Pro 4","4.4","¥1499，同价位配置最高，国产旗舰标杆"],
+             ["三星 Galaxy Buds3 Pro","3.2","¥1699，配置与定价基本匹配"],
+             ["小米 Redmi Buds 8","5.0","¥299，同价位无竞争对手，性价比之王"],
+             ["Brand X 目标","4.7","¥799，旗舰配置中端价格，是核心价值主张"]],
+    summary: "性价比赛道呈现「两极化」：¥299的小米统治低端，¥1499+的旗舰靠品牌溢价。中间¥500-999 价格带严重空缺，是Brand X最大机会窗口。",
+    brandx: "定价策略：¥799作为锚定价格，对标「苹果Pro三分之一的价格，获得80%的体验」。配合「旗舰参数清单」对比营销，强调在中端价位提供LDAC+35dB+ ANC+60h续航三重旗舰配置。",
+    threat: "high"
+  },
+  "外观工艺": {
+    icon: "✨",
+    color: "#8B5CF6",
+    winner: "苹果 / 三星",
+    scores: [["苹果 AirPods Pro 3","5.0","极简白色工业设计，全球辨识度第一，时尚符号"],
+             ["索尼 WF-1000XM5","4.5","商务质感，磨砂黑色，专业人士形象"],
+             ["华为 FreeBuds Pro 4","4.7","双色可选，金属质感充电仓，国风元素点缀"],
+             ["三星 Galaxy Buds3 Pro","4.8","极简圆润设计，充电仓质感极佳，时尚感强"],
+             ["小米 Redmi Buds 8","3.0","入门级塑料质感，设计中规中矩"],
+             ["Brand X 目标","4.5","目标：哑光金属+亚克力充电仓，主打「中端设计溢价」"]],
+    summary: "外观是购买决策的重要因素，尤其在小红书/抖音等内容平台。苹果和三星通过设计建立了强大的社交货币属性，晒单和开箱成为重要传播节点。",
+    brandx: "设计建议：投入哑光金属机身+亚克力镜面充电仓，提供3种配色（星夜黑/月光白/烟粉），定义「好看才是中端」视觉形象。与小红书KOL合作开箱种草，设计精致的开箱仪式感（磁吸包装+丝绒内衬）提升仪式感。",
+    threat: "low"
+  }
+};
+
+(function initRadarChips(){
+  const chips = document.getElementById("radar_chips");
+  const insightPanel = document.getElementById("radar_insight");
+  const dims = Object.keys(RADAR_DIM_INSIGHT);
+  const chipColors = {
+    "降噪能力":"#6366F1","续航时间":"#10B981","音质表现":"#8B5CF6",
+    "佩戴舒适":"#F59E0B","连接稳定":"#06B6D4","性价比":"#F43F5E","外观工艺":"#8B5CF6"
+  };
+
+  let activeDim = null;
+
+  function renderInsightPanel(dim) {
+    const d = RADAR_DIM_INSIGHT[dim];
+    const threatColor = d.threat==="high"?"#F43F5E":d.threat==="medium"?"#F59E0B":"#10B981";
+    const threatLabel = d.threat==="high"?"高优先级":d.threat==="medium"?"中优先级":"低优先级";
+
+    insightPanel.style.cssText = "min-height:380px;opacity:0;transition:opacity .25s;";
+    setTimeout(()=>{ insightPanel.style.opacity="1"; }, 20);
+
+    insightPanel.innerHTML = `
+      <div style="width:100%;">
+        <!-- 标题行 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:22px;">${d.icon}</span>
+            <span style="font-size:14px;font-weight:800;color:#1A1D40;">${dim} 维度分析</span>
+          </div>
+          <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;
+            background:${d.threat==="high"?"rgba(244,63,94,.1)":d.threat==="medium"?"rgba(245,158,11,.1)":"rgba(16,185,129,.1)"};
+            color:${threatColor};border:1px solid ${threatColor}30;">${threatLabel}</span>
+        </div>
+
+        <!-- 各品牌得分条 -->
+        <div style="margin-bottom:14px;">
+          ${d.scores.map(([brand,score,note])=>{
+            const pct = ((parseFloat(score)-3)/(5-3)*100).toFixed(0);
+            const isBrandX = brand.includes("Brand X");
+            return `<div style="margin-bottom:8px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                <span style="font-size:11px;font-weight:${isBrandX?"800":"500"};color:${isBrandX?d.color:"#1A1D40"};">
+                  ${isBrandX?"⭐ ":""}${brand}
+                </span>
+                <span style="font-size:12px;font-weight:800;color:${isBrandX?d.color:"#4A5070"};">${score}</span>
+              </div>
+              <div style="background:rgba(180,190,220,.2);border-radius:4px;height:6px;overflow:hidden;margin-bottom:3px;">
+                <div style="width:${pct}%;height:6px;border-radius:4px;
+                  background:${isBrandX?`linear-gradient(90deg,${d.color},rgba(245,158,11,.9))`:d.color};
+                  opacity:${isBrandX?1:0.55};transition:width .6s ease;"></div>
+              </div>
+              <div style="font-size:10px;color:#8B92B8;line-height:1.4;">${note}</div>
+            </div>`;
+          }).join("")}
+        </div>
+
+        <!-- 市场洞察 -->
+        <div style="padding:10px 12px;background:rgba(255,255,255,.5);border-radius:10px;border-left:3px solid ${d.color};margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:700;color:${d.color};margin-bottom:4px;">📊 市场洞察</div>
+          <div style="font-size:11px;color:#4A5070;line-height:1.7;">${d.summary}</div>
+        </div>
+
+        <!-- Brand X 建议 -->
+        <div style="padding:10px 12px;background:rgba(245,158,11,.06);border-radius:10px;border-left:3px solid #F59E0B;">
+          <div style="font-size:10px;font-weight:700;color:#B45309;margin-bottom:4px;">⭐ Brand X 策略建议</div>
+          <div style="font-size:11px;color:#4A5070;line-height:1.7;">${d.brandx}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  dims.forEach(dim=>{
+    const chip = document.createElement("button");
+    const col = chipColors[dim] || "#6366F1";
+    chip.style.cssText = `padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;
+      transition:all .2s;border:1px solid rgba(180,190,220,.4);
+      background:rgba(255,255,255,.5);color:#4A5070;backdrop-filter:blur(8px);`;
+    chip.innerHTML = `${RADAR_DIM_INSIGHT[dim].icon} ${dim}`;
+    chip.onclick = () => {
+      // 高亮当前chip
+      document.querySelectorAll("#radar_chips button").forEach(b=>{
+        b.style.background = "rgba(255,255,255,.5)";
+        b.style.color = "#4A5070";
+        b.style.border = "1px solid rgba(180,190,220,.4)";
+        b.style.boxShadow = "none";
+      });
+      chip.style.background = `rgba(${parseInt(col.slice(1,3),16)},${parseInt(col.slice(3,5),16)},${parseInt(col.slice(5,7),16)},.12)`;
+      chip.style.color = col;
+      chip.style.border = `1px solid ${col}40`;
+      chip.style.boxShadow = `0 2px 8px ${col}30`;
+      activeDim = dim;
+      renderInsightPanel(dim);
+    };
+    chips.appendChild(chip);
+  });
+})();
+
+// ════════════════════════════════════════
+// ⑭ 消费者洞察 — 实时抓取版
+// ════════════════════════════════════════
+const CAT_COLORS = {"品牌词":"#6366F1","功能需求":"#10B981","形态词":"#F59E0B","配件词":"#F43F5E","通用词":"#94A3BF"};
+// 饼图专用柔和色（降饱和+透明度，与磨砂风格协调）
+const CAT_PIE_COLORS = {
+  "功能需求":"rgba(16,185,129,0.72)",
+  "形态词":  "rgba(245,158,11,0.70)",
+  "品牌词":  "rgba(99,102,241,0.70)",
+  "配件词":  "rgba(244,63,94,0.68)",
+  "通用词":  "rgba(148,163,191,0.62)"
+};
+const CAT_BG     = {"品牌词":"rgba(99,102,241,.08)","功能需求":"rgba(16,185,129,.08)","形态词":"rgba(245,158,11,.08)","配件词":"rgba(244,63,94,.08)","通用词":"rgba(148,163,191,.08)"};
+const CAT_BORDER = {"品牌词":"rgba(99,102,241,.2)","功能需求":"rgba(16,185,129,.2)","形态词":"rgba(245,158,11,.2)","配件词":"rgba(244,63,94,.2)","通用词":"rgba(148,163,191,.2)"};
+const CAT_NAMES  = {"功能需求":"🎯 功能需求","形态词":"🎧 产品形态","品牌词":"🏷️ 品牌相关","配件词":"🛍️ 配件周边","通用词":"🔍 通用词"};
+
+// 降级缓存（网络不通时兜底）
+const TAOBAO_FALLBACK = [
+  {"word":"游戏耳机 入耳","heat":86790,"category":"功能需求"},{"word":"tws耳机保护套","heat":86703,"category":"配件词"},
+  {"word":"游戏耳机入耳式","heat":73542,"category":"功能需求"},{"word":"开放式耳机保护套","heat":72894,"category":"配件词"},
+  {"word":"降噪耳机蓝牙","heat":72201,"category":"功能需求"},{"word":"降噪耳机有线","heat":70119,"category":"功能需求"},
+  {"word":"游戏耳机蓝牙","heat":67275,"category":"功能需求"},{"word":"游戏耳机无线","heat":62522,"category":"功能需求"},
+  {"word":"骨传导耳机蓝牙","heat":60999,"category":"形态词"},{"word":"运动耳机骨传导","heat":56609,"category":"功能需求"},
+  {"word":"游戏耳机有线","heat":56225,"category":"功能需求"},{"word":"索尼耳机保护套","heat":53947,"category":"配件词"},
+  {"word":"运动耳机 防水","heat":53184,"category":"功能需求"},{"word":"华为耳机保护壳","heat":51338,"category":"配件词"},
+  {"word":"蓝牙耳机夹耳式","heat":49143,"category":"形态词"},{"word":"降噪耳机头戴式","heat":48903,"category":"功能需求"},
+  {"word":"airpods4保护壳","heat":46158,"category":"配件词"},{"word":"蓝牙耳机耳夹式","heat":45114,"category":"形态词"},
+  {"word":"游戏耳机头戴式","heat":43258,"category":"功能需求"},{"word":"蓝牙耳机超长续航大电量","heat":42385,"category":"功能需求"},
+  {"word":"索尼耳机蓝牙","heat":40543,"category":"品牌词"},{"word":"蓝牙耳机2026新款","heat":40379,"category":"通用词"},
+  {"word":"开放式耳机蓝牙","heat":39553,"category":"形态词"},{"word":"华为耳机壳","heat":39505,"category":"配件词"},
+  {"word":"airpods4耳机壳","heat":39073,"category":"配件词"},{"word":"骨传导耳机运动","heat":38800,"category":"形态词"},
+  {"word":"蓝牙耳机降噪2026","heat":37200,"category":"功能需求"},{"word":"索尼耳机降噪","heat":36800,"category":"品牌词"},
+  {"word":"耳机保护套通用","heat":35600,"category":"配件词"},{"word":"TWS耳机推荐","heat":34500,"category":"通用词"},
+];
+
+// 关键词 → 类别分类器
+// 优先级：配件周边 > 产品形态 > 功能需求 > 品牌词 > 通用词
+// 含品牌名但同时含配件词的（如「airpods保护壳」）归配件，不归品牌
+function classifyWord(w) {
+  // 1. 配件周边优先（耳机壳/保护套/充电仓等，不管带不带品牌名）
+  if (/保护[套壳盒]|耳机[壳套盒]|充电[盒仓]|配件|皮套|贴膜|硅胶套|收纳[盒袋包]|海绵[套垫耳]|[耳]帽|替换[套帽垫]/.test(w)) return "配件词";
+  // 2. 产品形态
+  if (/骨传导|开放式|耳夹|夹耳|耳挂|半入耳|入耳式|颈挂/.test(w)) return "形态词";
+  // 3. 功能需求
+  if (/降噪|游戏|运动|防水|续航|通话|录音|睡眠|主动降噪|ANC/.test(w)) return "功能需求";
+  // 4. 品牌词：纯品牌检索，不含配件/功能修饰词
+  if (/苹果|airpods|华为|索尼|小米|三星|vivo|oppo|jbl|漫步者|倍思|sennheiser|bose|iqoo|beats/i.test(w)) return "品牌词";
+  return "通用词";
+}
+
+// 设置消费者洞察区 loading 状态
+function setInsightLoading(isLoading, isLive) {
+  const tag = document.getElementById("insight-status-tag");
+  if (!tag) return;
+  if (isLoading) {
+    tag.textContent = "⏳ 实时抓取中...";
+    tag.style.background = "rgba(245,158,11,.1)";
+    tag.style.color = "#B45309";
+    tag.style.borderColor = "rgba(245,158,11,.3)";
+  } else if (isLive) {
+    tag.textContent = "✓ 实时数据";
+    tag.style.background = "rgba(16,185,129,.1)";
+    tag.style.color = "#047857";
+    tag.style.borderColor = "rgba(16,185,129,.2)";
+  } else {
+    tag.textContent = "⚠ 缓存数据";
+    tag.style.background = "rgba(244,63,94,.08)";
+    tag.style.color = "#BE123C";
+    tag.style.borderColor = "rgba(244,63,94,.2)";
+  }
+}
+
+// 核心渲染函数（接收词条数组）
+function renderInsight(words, isLive) {
+  setInsightLoading(false, isLive);
+
+  // 更新时间戳
+  const tsEl = document.getElementById("ts3");
+  if (tsEl) tsEl.textContent = new Date().toLocaleString("zh-CN",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}) + (isLive ? " 实时" : " 缓存");
+
+  const sorted = [...words].sort((a,b)=>b.heat-a.heat);
+  const top15  = sorted.slice(0,15);
+  const maxH   = top15[0]?.heat || 1;
+  const minH   = top15[top15.length-1]?.heat || 0;
+
+  // ── SVG Top15（移动端自适应宽度）
+  const svgContainer = document.getElementById("svg_top15");
+  const containerW = svgContainer.clientWidth || (window.innerWidth < 768 ? window.innerWidth - 48 : 520);
+  const isMobSvg = window.innerWidth < 768;
+  const PAD_L = isMobSvg ? 110 : 172;   // 标签区宽度
+  const PAD_R = isMobSvg ? 36 : 52;     // 右侧热度数字区
+  const W     = Math.max(120, containerW - PAD_L - PAD_R);  // 进度条区域宽度
+  const ROW_H = isMobSvg ? 30 : 34;
+  const PAD_T = 8;
+  const LABEL_FONT = isMobSvg ? 11 : 13;
+  const svgH = top15.length*ROW_H + PAD_T*2;
+  const gridLines = [0,.5,1].map(r=>{
+    const x = PAD_L + Math.round(r*W);
+    return `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${svgH-PAD_T}" stroke="rgba(180,190,220,.25)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="${x}" y="${svgH+12}" text-anchor="middle" font-size="9" fill="rgba(140,150,190,.7)">${((minH+r*(maxH-minH))/1000).toFixed(0)}k</text>`;
+  }).join("");
+  const rows = top15.map((w,i)=>{
+    const ratio = maxH===minH ? 1 : (w.heat-minH)/(maxH-minH);
+    const barW  = Math.max(4, Math.round(ratio*W));
+    const col   = CAT_COLORS[w.category]||"#94A3BF";
+    const y     = PAD_T + i*ROW_H;
+    const isTop3= i<3;
+    // badge 尺寸
+    const badgeW = isMobSvg ? 22 : 28;
+    const badgeH = isMobSvg ? 10 : 12;
+    const badgeFont = isMobSvg ? 7 : 8;
+    // 词语截断
+    const maxChars = isMobSvg ? 7 : 10;
+    const wordLabel = w.word.length > maxChars ? w.word.slice(0, maxChars)+'…' : w.word;
+    // 词语右对齐终点：为 badge 留出空间（TOP3行）
+    const wordEndX = isTop3 ? PAD_L - badgeW - 6 : PAD_L - 8;
+    // badge 紧贴进度条左侧
+    const badgeX = PAD_L - badgeW - 2;
+    return `<g transform="translate(0,${y})">
+      ${isTop3?`<rect x="0" y="2" width="${PAD_L-4}" height="${ROW_H-4}" rx="4" fill="${CAT_BG[w.category]||'rgba(148,163,191,.08)'}" opacity="1"/>`:``}
+      <text x="${wordEndX}" y="${ROW_H/2+5}" text-anchor="end"
+        font-size="${isTop3?LABEL_FONT:LABEL_FONT-1}" font-weight="${isTop3?"700":"500"}"
+        fill="${isTop3?"#1A1D40":"rgba(74,80,112,.85)"}"
+        font-family="Inter,SF Pro Display,PingFang SC,sans-serif">${wordLabel}</text>
+      ${isTop3?`<rect x="${badgeX}" y="${ROW_H/2-badgeH/2}" width="${badgeW}" height="${badgeH}" rx="3" fill="${col}" opacity="0.9"/>
+      <text x="${badgeX+badgeW/2}" y="${ROW_H/2+badgeH/2-2}" text-anchor="middle" font-size="${badgeFont}" font-weight="800" fill="#fff">T${i+1}</text>`:""}
+      <rect x="${PAD_L}" y="${ROW_H/2-7}" width="${barW}" height="14" rx="7" fill="${col}" opacity="${isTop3?.82:.65}"/>
+      <text x="${PAD_L+barW+5}" y="${ROW_H/2+5}" font-size="9" fill="rgba(140,150,190,.75)">${(w.heat/1000).toFixed(1)}k</text>
+    </g>`;
+  }).join("");
+  svgContainer.innerHTML =
+    `<svg width="100%" viewBox="0 0 ${PAD_L+W+PAD_R} ${svgH+20}" xmlns="http://www.w3.org/2000/svg" style="overflow:hidden;display:block;max-width:100%;">${gridLines}${rows}</svg>`;
+
+  // ── 徽章 + 环形图
+  const cats5 = ["功能需求","形态词","品牌词","配件词","通用词"];
+  const catMap = {};
+  words.forEach(w=>{ catMap[w.category]=(catMap[w.category]||0)+w.heat; });
+  const total = Object.values(catMap).reduce((a,b)=>a+b,0);
+  document.getElementById("cat_badges").innerHTML = cats5.map(c=>{
+    const pct = ((catMap[c]||0)/total*100).toFixed(0);
+    return `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(218,225,255,.55);border:1px solid rgba(255,255,255,.75);border-radius:20px;font-size:11px;font-weight:500;color:#1A1D40;backdrop-filter:blur(8px);">
+      <span style="width:6px;height:6px;border-radius:50%;background:${CAT_COLORS[c]};display:inline-block;"></span>
+      ${CAT_NAMES[c]||c} <b style="color:${CAT_COLORS[c]};">${pct}%</b></span>`;
+  }).join("");
+
+  Plotly.react("ch_cat",[{
+    type:"pie", labels:cats5, values:cats5.map(c=>catMap[c]||0), hole:0.54,
+    marker:{
+      colors: cats5.map(c=>CAT_PIE_COLORS[c]||"rgba(180,190,220,0.55)"),
+      line:{ color:"rgba(255,255,255,0.85)", width:2.5 }
+    },
+    textinfo:"percent",
+    textfont:{size:10, color:"rgba(255,255,255,0.92)", family:"Inter,PingFang SC,sans-serif"},
+    textposition:"inside",
+    insidetextorientation:"radial",
+    hovertemplate:"<b>%{label}</b><br>占比: %{percent}<extra></extra>",
+    showlegend:false, sort:false,
+    opacity:0.92,
+  }],{
+    ...BASE, height:180,
+    margin:{l:0,r:0,t:6,b:6},
+    annotations:[{
+      text:"<b>需求</b><br>分布",
+      x:.5, y:.5, showarrow:false,
+      font:{size:10, color:"#4A5070"},
+      xanchor:"center", yanchor:"middle"
+    }]
+  }, CONF);
+
+  // ── 分组词云
+  const grouped={};
+  cats5.forEach(c=>{grouped[c]=[];});
+  words.forEach(w=>{if(grouped[w.category])grouped[w.category].push(w);});
+  cats5.forEach(c=>grouped[c].sort((a,b)=>b.heat-a.heat));
+  const maxGH=Math.max(...words.map(w=>w.heat));
+  const minGH=Math.min(...words.map(w=>w.heat));
+  const container=document.getElementById("word_cloud_grouped");
+  container.innerHTML="";
+  const isMobCloud = window.innerWidth < 768;
+  container.style.cssText=`display:grid;grid-template-columns:repeat(${isMobCloud?2:5},1fr);gap:${isMobCloud?8:12}px;padding:4px 0;`;
+  cats5.forEach(cat=>{
+    const ws=grouped[cat]; if(!ws||!ws.length)return;
+    const col=document.createElement("div");
+    col.style.cssText=`background:linear-gradient(145deg,rgba(218,225,255,.65) 0%,rgba(205,218,255,.50) 100%);border-radius:var(--r-sm);padding:${isMobCloud?8:12}px;border:1px solid rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(80,90,180,.07);display:flex;flex-direction:column;`;
+    const hd=document.createElement("div");
+    hd.style.cssText=`font-size:${isMobCloud?11:12}px;font-weight:700;color:${CAT_COLORS[cat]};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${CAT_BORDER[cat]};display:flex;align-items:center;justify-content:space-between;flex-shrink:0;`;
+    hd.innerHTML=`<span>${CAT_NAMES[cat]||cat}</span><span style="background:${CAT_BG[cat]};color:${CAT_COLORS[cat]};padding:1px 5px;border-radius:10px;font-size:9px;">${ws.length}词</span>`;
+    col.appendChild(hd);
+    const list=document.createElement("div");
+    // 全部展示 + 可滚动
+    list.style.cssText=`display:flex;flex-direction:column;gap:${isMobCloud?4:5}px;overflow-y:auto;max-height:${isMobCloud?260:420}px;padding-right:2px;`;
+    ws.forEach((w,i)=>{
+      const ratio=maxGH===minGH?1:(w.heat-minGH)/(maxGH-minGH);
+      const bar=Math.round(ratio*100);
+      // 字号统一为 11px；前5名加粗（font-weight:700），其余正常（400）
+      const isTop5 = i < 5;
+      const row=document.createElement("div");
+      row.style.cssText="display:flex;align-items:center;gap:6px;cursor:default;";
+      row.title=`热度: ${w.heat.toFixed(0)}`;
+      const rank=document.createElement("span");
+      rank.style.cssText=`width:${isMobCloud?15:17}px;height:${isMobCloud?15:17}px;border-radius:4px;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${i<3?CAT_COLORS[cat]:"rgba(180,190,230,.45)"};color:${i<3?"#fff":"rgba(90,100,160,.8)"};`;
+      rank.textContent=i+1;
+      row.appendChild(rank);
+      const lbl=document.createElement("span");
+      lbl.style.cssText=`font-size:${isMobCloud?10:11}px;color:#1A1D40;font-weight:${isTop5?"700":"400"};line-height:1.3;flex:1;word-break:break-all;`;
+      lbl.textContent=w.word;
+      row.appendChild(lbl);
+      const bw=document.createElement("div");
+      bw.style.cssText=`width:${isMobCloud?28:34}px;flex-shrink:0;`;
+      bw.innerHTML=`<div style="background:#E8EAF0;border-radius:3px;height:3px;overflow:hidden;"><div style="width:${bar}%;height:3px;background:${CAT_COLORS[cat]};border-radius:3px;"></div></div><div style="font-size:8px;color:#9CA3BF;text-align:right;margin-top:1px;">${(w.heat/1000).toFixed(0)}k</div>`;
+      row.appendChild(bw);
+      list.appendChild(row);
+    });
+    col.appendChild(list);
+    container.appendChild(col);
+  });
+}
+
+// ════════════════════════════════════════
+// 🌐 fetchLiveData：拉取爬虫生成的 data.json
+// 如果文件存在（已部署到 GitHub Pages），用真实数据覆盖 mock
+// 如果不存在（本地 file:// 或首次部署前），静默降级，不影响 mock 展示
+// ════════════════════════════════════════
+async function fetchLiveData() {
+  // 尝试多个路径（本地 HTTP 服务器 / GitHub Pages 根目录）
+  const candidates = ["./data.json", "data.json"];
+  let data = null;
+
+  for (const path of candidates) {
+    try {
+      const resp = await fetch(path, { cache: "no-cache" });
+      if (resp.ok) {
+        data = await resp.json();
+        break;
+      }
+    } catch (_) { /* 静默忽略 */ }
+  }
+
+  if (!data) {
+    console.info("[LiveData] data.json 不可用，继续使用 mock 数据");
+    showDataSourceBadge("mock");
+    return;
+  }
+
+  const meta = data._meta || {};
+  console.info(`[LiveData] ✅ 加载成功，更新时间: ${meta.updated_at_cn}`);
+  showDataSourceBadge("live", meta.updated_at_cn);
+
+  // ── 1. 更新商品价格表格 ──
+  if (data.products && data.products.length > 0) {
+    renderLiveProducts(data.products);
+  }
+
+  // ── 2. 更新资讯表格 ──
+  if (data.news && data.news.length > 0) {
+    renderLiveNews(data.news);
+  }
+
+  // ── 3. 更新淘宝热词（如果爬虫已抓取，优先用爬虫数据，不再重复 JSONP 请求）──
+  if (data.taobao && data.taobao.top_words && data.taobao.top_words.length > 0) {
+    window.__liveHotWords = data.taobao;
+    renderLiveTaobaoWords(data.taobao);
+  }
+}
+
+// ── 数据来源状态角标
+function showDataSourceBadge(mode, updatedAt) {
+  const el = document.getElementById("data-source-badge");
+  if (!el) return;
+  if (mode === "live") {
+    el.style.display = "inline-block";
+    el.innerHTML = `<span style="color:var(--green);font-weight:700;">🟢 实时数据</span> 更新于 ${updatedAt}`;
+    el.style.background = "rgba(16,185,129,.08)";
+    el.style.borderColor = "rgba(16,185,129,.3)";
+  } else {
+    // mock模式静默不显示
+    el.style.display = "none";
+  }
+}
+
+// ── 用真实数据渲染商品表格
+function renderLiveProducts(products) {
+  const tbody = document.getElementById("prod_tbody");
+  if (!tbody) return;
+
+  // 生成威胁程度标签
+  function threatBadge(brand) {
+    const high = ["苹果", "索尼", "华为"];
+    const mid  = ["三星", "小米"];
+    if (high.some(b => brand.includes(b))) return `<span class="threat-badge high">🔴 高</span>`;
+    if (mid.some(b => brand.includes(b)))  return `<span class="threat-badge mid">🟡 中</span>`;
+    return `<span class="threat-badge low">🟢 低</span>`;
+  }
+
+  tbody.innerHTML = products.map(p => {
+    const jdPrice   = p.jd_price    ? `¥${p.jd_price.toLocaleString()}` : "—";
+    const pddPrice  = p.pdd_min_price ? `¥${p.pdd_min_price.toLocaleString()}` : "—";
+    const diffBadge = p.price_diff_pct != null
+      ? `<span style="font-size:10px;color:${p.price_diff_pct < 0 ? '#F43F5E' : '#10B981'};">(拼多多 ${p.price_diff_pct > 0 ? '+' : ''}${p.price_diff_pct}%)</span>`
+      : "";
+    const rating     = p.jd_rating    ? `⭐ ${p.jd_rating}` : "—";
+    const reviewCnt  = p.jd_review_count || "—";
+
+    return `<tr>
+      <td><b>${p.brand}</b></td>
+      <td>${p.product_name || "—"}</td>
+      <td>
+        <div>${jdPrice} <span style="font-size:10px;color:var(--text-3);">京东</span></div>
+        <div>${pddPrice} <span style="font-size:10px;color:var(--text-3);">拼多多</span> ${diffBadge}</div>
+      </td>
+      <td><a href="${p.jd_url || '#'}" target="_blank" style="color:var(--accent);font-size:11px;">京东链接 🔗</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>${rating}</td>
+      <td>${reviewCnt}</td>
+      <td>${threatBadge(p.brand)}</td>
+    </tr>`;
+  }).join("");
+
+  // 更新数据来源标注
+  const noteEl = document.querySelector("#products .note");
+  if (noteEl) {
+    const now = new Date().toLocaleString("zh-CN");
+    noteEl.innerHTML = `✅ 价格数据由爬虫实时抓取（京东 + 拼多多），更新时间：${now}`;
+    noteEl.className = "note ok";
+  }
+}
+
+// ── 用真实数据渲染资讯表格
+function renderLiveNews(news) {
+  const tbody = document.getElementById("news_tbody");
+  if (!tbody) return;
+
+  const impactColor = { "高": "#F43F5E", "中": "#F59E0B", "低": "#10B981" };
+  const impactBg    = { "高": "rgba(244,63,94,.08)", "中": "rgba(245,158,11,.08)", "低": "rgba(16,185,129,.08)" };
+
+  tbody.innerHTML = news.slice(0, 20).map(item => {
+    const impact = item.impact || "低";
+    const color  = impactColor[impact] || "#10B981";
+    const bg     = impactBg[impact]    || "rgba(16,185,129,.08)";
+    const kwBadges = (item.matched_keywords || []).map(
+      kw => `<span style="font-size:9px;background:rgba(99,102,241,.1);color:var(--accent);padding:1px 5px;border-radius:8px;">${kw}</span>`
+    ).join(" ");
+
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px;">${item.pub_date ? item.pub_date.slice(0, 10) : "—"}</td>
+      <td><span style="font-size:10px;color:var(--text-3);background:var(--surface2);padding:1px 6px;border-radius:8px;">${item.source}</span></td>
+      <td>
+        <a href="${item.url}" target="_blank" style="color:var(--text-1);font-weight:600;text-decoration:none;font-size:12px;">${item.title}</a>
+        <div style="margin-top:3px;">${kwBadges}</div>
+      </td>
+      <td style="font-size:11px;color:var(--text-2);max-width:220px;">${item.summary || "—"}</td>
+      <td><span style="font-size:10px;font-weight:700;color:${color};background:${bg};padding:2px 8px;border-radius:12px;">${impact}</span></td>
+      <td><a href="${item.url}" target="_blank" style="color:var(--accent);font-size:11px;">${item.source} 🔗</a></td>
+    </tr>`;
+  }).join("");
+}
+
+// ── 用爬虫数据渲染淘宝热词（覆盖 JSONP 降级版本）
+function renderLiveTaobaoWords(taobaoData) {
+  const words = taobaoData.top_words || [];
+  if (words.length === 0) return;
+
+  // 复用现有渲染逻辑：把数据格式转成前端期望格式
+  const catGroups = {};
+  words.forEach(w => {
+    const cat = w.category || "其他";
+    if (!catGroups[cat]) catGroups[cat] = [];
+    catGroups[cat].push({ word: w.word, count: w.weight, rank: w.rank_min });
+  });
+  window.__wordGroups = catGroups;
+
+  // 触发现有的渲染函数
+  if (typeof renderWordCloud === "function") {
+    renderWordCloud(catGroups);
+  }
+  if (typeof renderCategoryChart === "function") {
+    const stats = taobaoData.category_stats || {};
+    const cats = Object.keys(stats);
+    const pcts = cats.map(c => stats[c].pct);
+    renderCategoryChart(cats, pcts);
+  }
+
+  // 更新状态标签
+  const statusTag = document.getElementById("insight-status-tag");
+  if (statusTag) {
+    statusTag.textContent = "✅ 爬虫实时数据";
+    statusTag.style.background = "rgba(16,185,129,.1)";
+    statusTag.style.color = "#059669";
+    statusTag.style.borderColor = "rgba(16,185,129,.3)";
+  }
+}
+
+// ── 淘宝 Suggest API 实时抓取（JSONP）
+function fetchTaobaoWords() {
+  setInsightLoading(true, false);
+
+  // 要查询的关键词组，覆盖多个场景
+  const queries = ["TWS耳机","蓝牙耳机","降噪耳机","骨传导耳机","开放式耳机","游戏耳机","运动耳机","AirPods","华为耳机","索尼耳机"];
+  const allWords = {};
+  let done = 0;
+  let hasFetched = false;
+
+  queries.forEach((q, qi) => {
+    const cbName = `__tb_cb_${qi}`;
+    const script = document.createElement("script");
+    script.src = `https://suggest.taobao.com/sug?code=utf-8&q=${encodeURIComponent(q)}&callback=${cbName}`;
+    script.onerror = () => {
+      done++;
+      if (done === queries.length && !hasFetched) {
+        // 全部失败，用降级缓存
+        renderInsight(TAOBAO_FALLBACK, false);
+      }
+      document.head.removeChild(script);
+    };
+
+    window[cbName] = function(data) {
+      try {
+        if (data && data.result) {
+          data.result.forEach(([word, heatStr], idx) => {
+            const heat = parseFloat(heatStr) || (queries.length - qi) * 10000 - idx * 300;
+            const cat  = classifyWord(word);
+            if (!allWords[word] || allWords[word].heat < heat) {
+              allWords[word] = {word, heat, category: cat};
+            }
+          });
+        }
+      } catch(e) {}
+      done++;
+      delete window[cbName];
+      document.head.removeChild(script);
+
+      // 每拿到一批数据就先渲染，让用户看到进展
+      if (!hasFetched && Object.keys(allWords).length >= 10) {
+        hasFetched = true;
+        renderInsight(Object.values(allWords), true);
+      }
+      // 全部完成后最终渲染
+      if (done === queries.length) {
+        const result = Object.values(allWords);
+        if (result.length > 0) {
+          renderInsight(result, true);
+        } else {
+          renderInsight(TAOBAO_FALLBACK, false);
+        }
+      }
+    };
+
+    // 超时降级
+    setTimeout(() => {
+      if (window[cbName]) {
+        delete window[cbName];
+        done++;
+        if (done === queries.length && !hasFetched) {
+          renderInsight(TAOBAO_FALLBACK, false);
+        }
+        try { document.head.removeChild(script); } catch(e){}
+      }
+    }, 5000);
+
+    document.head.appendChild(script);
+  });
+}
+
+// ════════════════════════════════════════
+// ⑮ 竞品表格
+// ════════════════════════════════════════
+const PRODUCTS = [
+  {"brand":"苹果","model":"AirPods Pro 3","price_cny":1899,"price_source":"天猫Apple官方旗舰店","jd_url":"https://item.jd.com/100038004391.html","release":"2025-09","highlight":"H3芯片 / 主动降噪 / 心率监测 / 助听功能","jd_rating":4.9,"comment_count_approx":"50万+","threat":5},
+  {"brand":"索尼","model":"WF-1000XM5","price_cny":1799,"price_source":"京东索尼自营","jd_url":"https://item.jd.com/100046036924.html","release":"2023-07","highlight":"顶级ANC / LDAC / 8小时续航","jd_rating":4.8,"comment_count_approx":"10万+","threat":4},
+  {"brand":"三星","model":"Galaxy Buds3 Pro","price_cny":1699,"price_source":"京东三星自营","jd_url":"https://item.jd.com/100096619736.html","release":"2024-07","highlight":"Galaxy AI实时翻译 / 10mm驱动 / IP57","jd_rating":4.7,"comment_count_approx":"8万+","threat":4},
+  {"brand":"华为","model":"FreeBuds Pro 4","price_cny":1499,"price_source":"华为商城","jd_url":"https://consumer.huawei.com/cn/audio/freebuds-pro-4/","release":"2025-03","highlight":"星闪连接 / 3麦克风ANC / 鸿蒙智联","jd_rating":4.8,"comment_count_approx":"15万+","threat":4},
+  {"brand":"小米","model":"Redmi Buds 8","price_cny":299,"price_source":"小米官网","jd_url":"https://www.mi.com/","release":"2026-04","highlight":"50dB降噪 / 11mm动圈 / 防丢查找","jd_rating":4.7,"comment_count_approx":"新品","threat":3},
+  {"brand":"JBL","model":"LIVE BUDS 4","price_cny":1599,"price_source":"京东JBL旗舰店","jd_url":"https://item.jd.com/100038004391.html","release":"2026-04","highlight":"充电仓1.57英寸彩屏 / 10mm驱动","jd_rating":4.6,"comment_count_approx":"新品","threat":3},
+];
+(function(){
+  const tbody=document.getElementById("prod_tbody");
+  const brandBadge={"苹果":"b-gray","索尼":"b-blue","三星":"b-blue","华为":"b-red","小米":"b-teal","JBL":"b-purple"};
+  const threatBar=(n)=>`<div style="display:flex;gap:2px;">${[1,2,3,4,5].map(i=>`<div style="width:10px;height:10px;border-radius:2px;background:${i<=n?"#F43F5E":"#E8EAF0"};"></div>`).join("")}</div>`;
+  PRODUCTS.forEach(p=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><span class="badge ${brandBadge[p.brand]||"b-gray"}">${p.brand}</span></td>
+      <td style="font-weight:600;"><a href="${p.jd_url}" target="_blank" style="color:var(--accent);text-decoration:none;">${p.model}</a></td>
+      <td style="font-weight:800;color:var(--text-1);">¥${p.price_cny}</td>
+      <td style="font-size:11px;color:var(--text-3);">${p.price_source}</td>
+      <td style="font-size:11px;color:var(--text-3);">${p.release}</td>
+      <td style="font-size:12px;max-width:180px;line-height:1.5;">${p.highlight}</td>
+      <td><span style="font-weight:700;color:var(--yellow);">★</span> <span style="font-size:11px;color:var(--text-2);">${p.jd_rating}</span></td>
+      <td style="font-size:11px;color:var(--text-3);">${p.comment_count_approx}</td>
+      <td>${threatBar(p.threat)}</td>`;
+    tbody.appendChild(tr);
+  });
+})();
+
+// ════════════════════════════════════════
+// ⑮-B 多维度竞品分析
+// ════════════════════════════════════════
+const COMP_DIMS = ["降噪","音质","续航","连接","性价比","外观","生态","技术创新"];
+const COMP_DATA = [
+  {brand:"苹果 AirPods Pro 3", color:"#6366F1", emoji:"🍎",
+   scores:[5,5,4,5,2,5,5,5],
+   price:1899, price_tier:"高端旗舰 ¥1500+", target:"苹果生态用户 / 商务人士",
+   chip:"H3自研", anc:"顶级双向ANC 40dB+", codec:"AAC / Apple专有", ip:"IP54",
+   shipment:"Q4 24: 25M台", share:"23%", yoy:"+4pp",
+   rating:4.9, good_tags:["降噪极强","佩戴稳固","AirPods互联"],
+   bad_tags:["非苹果设备体验差","价格高","通话风噪偏大"],
+   strategy:"苹果封闭生态壁垒极深，非苹用户是可争取空间；主攻降噪+跨平台连接差异化"
+  },
+  {brand:"索尼 WF-1000XM5", color:"#06B6D4", emoji:"🎵",
+   scores:[5,5,3,4,3,4,3,5],
+   price:1799, price_tier:"高端旗舰 ¥1500+", target:"发烧友 / 音乐创作者",
+   chip:"V2处理器", anc:"行业顶级QN1e", codec:"LDAC/AAC/SBC", ip:"IPX4",
+   shipment:"Q4 24: 9M台", share:"9%", yoy:"持平",
+   rating:4.8, good_tags:["音质标杆","LDAC高解析","App自定义强"],
+   bad_tags:["续航偏短","充电仓偏大","不适合运动"],
+   strategy:"索尼音质王牌难撼动，可差异化主打「运动+高音质」双强组合，切入细分场景"
+  },
+  {brand:"华为 FreeBuds Pro 4", color:"#F43F5E", emoji:"📡",
+   scores:[4,4,5,5,4,5,5,5],
+   price:1499, price_tier:"中高端 ¥1000-1500", target:"华为/鸿蒙生态用户",
+   chip:"麒麟A2", anc:"双麦智能ANC 50dB", codec:"LDAC/L2HC/AAC", ip:"IP54",
+   shipment:"Q4 24: 4M台", share:"5%", yoy:"+31% YoY",
+   rating:4.8, good_tags:["华为互联无缝","续航超长","星闪低延迟"],
+   bad_tags:["非华为设备功能受限","售后服务有争议","价格略高"],
+   strategy:"华为增速最快，星闪协议是技术壁垒；针对非鸿蒙用户推广开放标准是机会"
+  },
+  {brand:"三星 Galaxy Buds3 Pro", color:"#8B5CF6", emoji:"🌀",
+   scores:[4,4,4,4,3,5,4,4],
+   price:1699, price_tier:"中高端 ¥1500+", target:"三星Galaxy用户 / 时尚人群",
+   chip:"自研Galaxy AI", anc:"双向ANC+10mm动圈", codec:"AAC/SBC/三星专有", ip:"IP57",
+   shipment:"Q4 24: 9M台", share:"9%", yoy:"持平",
+   rating:4.7, good_tags:["外观设计精致","Galaxy AI翻译","佩戴舒适"],
+   bad_tags:["非三星设备功能阉割","价格高","部分用户反馈降噪一般"],
+   strategy:"三星外观设计强，可跟进「时尚+AI功能」卖点；IP57防水是亮点可参考"
+  },
+  {brand:"小米 Redmi Buds 8", color:"#10B981", emoji:"🟢",
+   scores:[3,3,4,3,5,3,3,3],
+   price:299, price_tier:"入门平价 ¥300以下", target:"学生 / 初次购买用户",
+   chip:"JL6989D(杰理)", anc:"50dB降噪(宣称)", codec:"AAC/SBC", ip:"IP54",
+   shipment:"新品 2026-04", share:"8%(小米整体)", yoy:"+50% YoY",
+   rating:4.7, good_tags:["性价比极高","降噪宣称强","续航长"],
+   bad_tags:["实测降噪偏弱","音质一般","做工有差距"],
+   strategy:"小米以低价抢市场入口，重点打中端(¥500-999)价格带，主攻从小米毕业的升级用户"
+  },
+  {brand:"Brand X（目标）", color:"#F59E0B", emoji:"⭐",
+   scores:[4,4,4,5,4,4,3,4],
+   price:799, price_tier:"中端 ¥500-999", target:"品质升级用户 / 跨平台用户",
+   chip:"待定旗舰方案", anc:"目标40dB双向ANC", codec:"LDAC/AAC/SBC", ip:"IP55目标",
+   shipment:"—", share:"—", yoy:"—",
+   rating:null, good_tags:["跨平台多设备连接","中端价位最强ANC","60小时超长续航"],
+   bad_tags:["品牌认知待建立","渠道覆盖不足","生态弱于巨头"],
+   strategy:"核心差异化：¥799中端价格带，提供旗舰级降噪+跨平台连接+60h续航，主打「小米升级首选」"
+  },
+];
+
+(function(){
+  // ── 1. 热力矩阵
+  const matrixEl = document.getElementById("comp_matrix");
+  const scoreColor = s => {
+    if(s>=5) return "rgba(16,185,129,0.85)";
+    if(s>=4) return "rgba(99,102,241,0.75)";
+    if(s>=3) return "rgba(245,158,11,0.70)";
+    return "rgba(244,63,94,0.65)";
+  };
+  const scoreText = s => s>=5?"★★★★★":s>=4?"★★★★":s>=3?"★★★":"★★";
+  let html = `<div class="tbl-wrap"><table class="tbl comp-matrix-tbl" style="min-width:480px;">
+    <thead><tr>
+      <th style="width:100px;">品牌 / 产品</th>
+      ${COMP_DIMS.map(d=>`<th style="text-align:center;font-size:10px;">${d}</th>`).join("")}
+      <th style="text-align:center;">综合</th>
+    </tr></thead><tbody>`;
+  COMP_DATA.forEach(p=>{
+    const total = (p.scores.reduce((a,b)=>a+b,0)/p.scores.length).toFixed(1);
+    html+=`<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0;"></span>
+        <span style="font-size:11px;font-weight:600;color:#1A1D40;">${p.emoji} ${p.brand.split(" ")[0]}</span>
+      </span></td>
+      ${p.scores.map(s=>`
+        <td style="text-align:center;padding:6px 4px;">
+          <div style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:${scoreColor(s)};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;">${s}</div>
+          </div>
+        </td>`).join("")}
+      <td style="text-align:center;">
+        <span style="font-size:13px;font-weight:800;color:${p.color};">${total}</span>
+      </td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  matrixEl.innerHTML = html;
+
+  // ── 2. 价格带
+  const priceEl = document.getElementById("comp_price");
+  const tiers = [
+    {label:"高端旗舰 ¥1500+", range:[1500,9999], color:"#6366F1"},
+    {label:"中高端 ¥1000-1500", range:[1000,1499], color:"#8B5CF6"},
+    {label:"中端 ¥500-999",   range:[500,999],  color:"#F59E0B"},
+    {label:"入门 ¥300以下",   range:[0,499],    color:"#10B981"},
+  ];
+  priceEl.innerHTML = tiers.map(tier=>{
+    const items = COMP_DATA.filter(p=>p.price>=tier.range[0]&&p.price<=tier.range[1]);
+    if(!items.length) return "";
+    return `<div style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="width:3px;height:14px;border-radius:2px;background:${tier.color};"></div>
+        <span style="font-size:11px;font-weight:700;color:#1A1D40;">${tier.label}</span>
+      </div>
+      ${items.map(p=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:4px;background:rgba(255,255,255,.45);border-radius:8px;border:1px solid rgba(255,255,255,.7);">
+          <span style="font-size:11px;color:#1A1D40;">${p.emoji} ${p.brand.split(" ")[0]}</span>
+          <span style="font-size:12px;font-weight:800;color:${tier.color};">¥${p.price}</span>
+        </div>
+        <div style="font-size:10px;color:#8B92B8;padding:0 10px 6px;line-height:1.5;">目标: ${p.target}</div>
+      `).join("")}
+    </div>`;
+  }).join("");
+
+  // ── 3. 核心技术
+  const techEl = document.getElementById("comp_tech");
+  techEl.innerHTML = `<div class="tbl-wrap"><table class="tbl" style="font-size:11px;min-width:340px;">
+    <thead><tr><th style="width:56px;">品牌</th><th>芯片</th><th>ANC方案</th><th>音频协议</th><th>防水</th></tr></thead>
+    <tbody>
+    ${COMP_DATA.map(p=>`<tr>
+      <td style="white-space:nowrap;"><span style="color:${p.color};font-weight:700;">${p.emoji} ${p.brand.split(" ")[0]}</span></td>
+      <td style="font-size:10px;">${p.chip}</td>
+      <td style="font-size:10px;">${p.anc}</td>
+      <td style="font-size:10px;">${p.codec}</td>
+      <td><span class="badge b-blue" style="font-size:9px;">${p.ip}</span></td>
+    </tr>`).join("")}
+    </tbody>
+  </table></div>`;
+
+  // ── 4. 销量市场
+  const salesEl = document.getElementById("comp_sales");
+  salesEl.innerHTML = COMP_DATA.map(p=>{
+    const hasData = p.shipment !== "—";
+    const yoyColor = p.yoy.startsWith("+") ? "#10B981" : p.yoy==="-"?"#8B92B8":"#F43F5E";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;background:rgba(255,255,255,.42);border-radius:10px;border:1px solid rgba(255,255,255,.7);">
+      <div style="width:4px;height:36px;border-radius:2px;background:${p.color};flex-shrink:0;"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:700;color:#1A1D40;margin-bottom:2px;white-space:nowrap;">${p.emoji} ${p.brand.split(" ")[0]}</div>
+        <div style="font-size:10px;color:#8B92B8;">${p.shipment}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:12px;font-weight:800;color:#1A1D40;">${p.share}</div>
+        <div style="font-size:10px;font-weight:700;color:${yoyColor};">${p.yoy}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  // ── 5. 用户口碑
+  const reviewEl = document.getElementById("comp_review");
+  reviewEl.innerHTML = COMP_DATA.map(p=>`
+    <div style="padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,.42);border-radius:10px;border:1px solid rgba(255,255,255,.7);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:700;color:${p.color};white-space:nowrap;">${p.emoji} ${p.brand.split(" ")[0]}</span>
+        ${p.rating?`<span style="font-size:12px;font-weight:800;color:#F59E0B;">★ ${p.rating}</span>`:`<span style="font-size:10px;color:#8B92B8;">暂无评分</span>`}
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">
+        ${p.good_tags.map(t=>`<span style="font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(16,185,129,.12);color:#047857;border:1px solid rgba(16,185,129,.2);">👍 ${t}</span>`).join("")}
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${p.bad_tags.map(t=>`<span style="font-size:9px;padding:2px 7px;border-radius:10px;background:rgba(244,63,94,.08);color:#BE123C;border:1px solid rgba(244,63,94,.15);">👎 ${t}</span>`).join("")}
+      </div>
+    </div>
+  `).join("");
+
+  // ── 6. 竞争策略
+  const stratEl = document.getElementById("comp_strategy");
+  stratEl.innerHTML = COMP_DATA.map(p=>`
+    <div style="padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,.42);border-radius:10px;border-left:3px solid ${p.color};border-top:1px solid rgba(255,255,255,.7);border-right:1px solid rgba(255,255,255,.7);border-bottom:1px solid rgba(255,255,255,.7);">
+      <div style="font-size:11px;font-weight:700;color:${p.color};margin-bottom:5px;">${p.emoji} vs ${p.brand.split(" ")[0]}</div>
+      <div style="font-size:11px;color:#4A5070;line-height:1.6;">${p.strategy}</div>
+    </div>
+  `).join("");
+})();
+
+// ════════════════════════════════════════
+// ⑯ 资讯表格
+// ════════════════════════════════════════
+const NEWS = [
+  {"title":"小米Redmi Buds 8耳机发布：50dB降噪+11mm高性能动圈，4月21日上市","url":"https://www.ithome.com/0/939/756.htm","summary":"搭载50dB宽频降噪，配备11mm高性能动圈单元，续航大幅提升，剑指中端市场。","date":"2026-04-17","category":"竞品-小米","impact":"高","source":"IT之家"},
+  {"title":"华为WATCH Buds 2手表耳机二合一官宣：4月20日发布","url":"https://www.ithome.com/0/939/743.htm","summary":"华为延续手表+耳机二合一创新形态，发布时间2026年4月20日。","date":"2026-04-17","category":"竞品-华为","impact":"中","source":"IT之家"},
+  {"title":"苹果2026款AirPods Pro前瞻：内置红外摄像头+手势控制+H3芯片","url":"https://www.ithome.com/0/935/925.htm","summary":"新增红外摄像头支持手势控制，听力辅助能力进一步增强，预计2026年下半年发布。","date":"2026-04-10","category":"竞品-苹果","impact":"高","source":"IT之家"},
+  {"title":"OPPO Enco Clip2耳夹耳机规格公布：适配苹果语音指令，40小时超长续航","url":"https://www.ithome.com/0/937/348.htm","summary":"采用开放耳夹设计，充电仓总续航达40小时，主打舒适佩戴+跨平台兼容。","date":"2026-04-08","category":"新品动向","impact":"中","source":"IT之家"},
+  {"title":"JBL LIVE BUDS 4上架：充电盒带1.57英寸彩屏，国行售价1599元","url":"https://www.ithome.com/0/938/575.htm","summary":"差异化设计瞄准高端市场，10mm驱动单元，售价1599元。","date":"2026-04-06","category":"新品动向","impact":"中","source":"IT之家"},
+  {"title":"2025年全球TWS主控芯片格局：杰理第一，高通高端主导，恒玄快速崛起","url":"https://www.sohu.com/a/892866017_121960420","summary":"苹果自研H芯片、高通QCC系列、杰理科技分列三甲，国产芯片份额持续提升。","date":"2025-06-10","category":"供应链","impact":"高","source":"潮电智库"},
+  {"title":"TWS耳机开放式形态爆发：OWS渗透率快速提升","url":"https://www.msn.cn/zh-cn/news/other/2025%E5%B9%B4tws%E8%80%B3%E6%9C%BA%E5%B8%82%E5%9C%BA%E6%96%B0%E5%8A%A8%E6%80%81/ar-AA1QZoaT","summary":"开放式耳机2024年实现三位数增长，成为TWS最大增量品类。","date":"2025-05-18","category":"新品动向","impact":"高","source":"MSN科技"},
+];
+(function(){
+  const tbody=document.getElementById("news_tbody");
+  const catBadge={"供应链":"b-yellow","新品动向":"b-blue","竞品-苹果":"b-gray","竞品-华为":"b-red","竞品-小米":"b-teal","行业动态":"b-purple"};
+  const impBadge={"高":"b-red","中":"b-yellow","低":"b-green"};
+  const srcColor={"36kr":"b-purple","IT之家":"b-blue","潮电智库":"b-teal","MSN科技":"b-gray"};
+  NEWS.forEach(n=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td style="white-space:nowrap;font-size:11px;color:var(--text-3);">${n.date}</td>
+      <td><span class="badge ${catBadge[n.category]||"b-gray"}" style="white-space:nowrap;">${n.category}</span></td>
+      <td style="font-weight:600;max-width:200px;font-size:12px;"><a href="${n.url}" target="_blank" style="color:var(--text-1);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-1)'">${n.title}</a></td>
+      <td style="font-size:11px;color:var(--text-2);max-width:220px;line-height:1.5;">${n.summary}</td>
+      <td><span class="badge ${impBadge[n.impact]||"b-gray"}">${n.impact}</span></td>
+      <td><span class="badge ${srcColor[n.source]||"b-gray"}" style="white-space:nowrap;">${n.source}</span></td>`;
+    tbody.appendChild(tr);
+  });
+})();
+
+// ════════════════════════════════════════
+// ⑰ 统一刷新入口
+// ════════════════════════════════════════
+function refreshAllCharts() {
+  renderKPI();
+  renderShip();
+  renderRev();
+  renderAUR();
+  renderProfit();
+  // 每次图表重绘后清除白底
+  if (typeof clearPlotlyBg === 'function') {
+    setTimeout(clearPlotlyBg, 150);
+    setTimeout(clearPlotlyBg, 500);
+  }
+}
+
+// ════════════════════════════════════════
+// ⑱ 初始化 → 由 head 中的 __initDashboard() 在 Plotly 加载完后统一调用
+// ════════════════════════════════════════
+</script>
+</body>
+</html>
+
