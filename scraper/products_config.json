@@ -1,0 +1,78 @@
+{
+  "_comment": "在这里维护要监控的竞品 SKU，爬虫会自动抓取价格/评分/销量",
+  "jd_products": [
+    {
+      "brand": "苹果 AirPods Pro 3",
+      "sku_id": "100046036924",
+      "name": "Apple AirPods Pro (第三代)",
+      "note": "京东自营"
+    },
+    {
+      "brand": "索尼 WF-1000XM5",
+      "sku_id": "10080044644153",
+      "name": "Sony WF-1000XM5",
+      "note": "京东自营"
+    },
+    {
+      "brand": "华为 FreeBuds Pro 4",
+      "sku_id": "10113739463179",
+      "name": "HUAWEI FreeBuds Pro 4",
+      "note": "华为京东自营"
+    },
+    {
+      "brand": "小米 Redmi Buds 8",
+      "sku_id": "10124660095441",
+      "name": "Redmi Buds 8",
+      "note": "小米京东自营"
+    },
+    {
+      "brand": "三星 Galaxy Buds3 Pro",
+      "sku_id": "100099012419",
+      "name": "Samsung Galaxy Buds3 Pro",
+      "note": "三星京东自营"
+    }
+  ],
+  "pdd_products": [
+    {
+      "brand": "苹果 AirPods Pro 3",
+      "keyword": "AirPods Pro 3代",
+      "note": "拼多多搜索关键词"
+    },
+    {
+      "brand": "索尼 WF-1000XM5",
+      "keyword": "索尼WF-1000XM5",
+      "note": "拼多多搜索关键词"
+    },
+    {
+      "brand": "华为 FreeBuds Pro 4",
+      "keyword": "华为FreeBuds Pro 4",
+      "note": "拼多多搜索关键词"
+    },
+    {
+      "brand": "小米 Redmi Buds 8",
+      "keyword": "Redmi Buds 8",
+      "note": "拼多多搜索关键词"
+    }
+  ],
+  "rss_sources": [
+    {
+      "name": "36kr",
+      "url": "https://36kr.com/feed",
+      "keywords": ["TWS", "耳机", "AirPods", "FreeBuds", "Galaxy Buds", "降噪"]
+    },
+    {
+      "name": "IT之家",
+      "url": "https://www.ithome.com/rss/",
+      "keywords": ["TWS", "耳机", "AirPods", "FreeBuds", "蓝牙耳机"]
+    },
+    {
+      "name": "199IT",
+      "url": "http://www.199it.com/feed",
+      "keywords": ["TWS", "耳机", "Canalys", "音频", "可穿戴"]
+    }
+  ],
+  "taobao_keywords": [
+    "TWS耳机", "降噪耳机", "无线耳机", "蓝牙耳机",
+    "运动耳机", "游戏耳机", "骨传导耳机", "开放式耳机"
+  ]
+}

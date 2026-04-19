@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# 其他项目（不需要部署）
+agent-demo/
+seed/
+wangchenyuan-portfolio/
+pdf_pages/
+resume_pages/
+
+# 临时脚本和数据
+build_dashboard.py
+build_final_dashboard.py
+fetch_real_data.py
+inject_data.py
+get_uid.py
+send_single.py
+test_robot_msg.py
+real_data.json
+scraper/scraper.log
+scraper/data/
+
+# 杂项
+_full_shot.sh
+portfolio-prompt.md
+HANDOFF.md
+*.skill
