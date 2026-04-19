@@ -477,6 +477,27 @@ body::after{
 </head>
 <body>
 
+<!-- 手机竖屏提示 -->
+<div id="mobile-tip" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(145deg,#E8EDFF,#F0F7FF);flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center;">
+  <div style="font-size:48px;">🖥️</div>
+  <div style="font-size:18px;font-weight:700;color:#1A1D2E;">建议横屏或电脑查看</div>
+  <div style="font-size:13px;color:#4A5070;line-height:1.8;">此仪表板为桌面端数据看板<br>竖屏下布局可能显示异常</div>
+  <button onclick="document.getElementById('mobile-tip').style.display='none'" style="margin-top:8px;padding:10px 28px;background:#6366F1;color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">继续查看</button>
+</div>
+<script>
+(function(){
+  function checkMobile(){
+    var isMobile = window.innerWidth < 768;
+    var isPortrait = window.innerHeight > window.innerWidth;
+    var tip = document.getElementById('mobile-tip');
+    if(tip) tip.style.display = (isMobile && isPortrait) ? 'flex' : 'none';
+  }
+  window.addEventListener('DOMContentLoaded', checkMobile);
+  window.addEventListener('resize', checkMobile);
+  window.addEventListener('orientationchange', function(){ setTimeout(checkMobile, 300); });
+})();
+</script>
+
 <!-- ════ SIDEBAR ════ -->
 <nav class="sidebar">
   <div class="sb-brand-row">
@@ -524,9 +545,7 @@ body::after{
   <div class="tb-right">
     <span style="font-size:11px;color:var(--text-3);">Canalys · JD · PDD · Taobao · IT之家</span>
     <div style="width:1px;height:14px;background:var(--border2);"></div>
-    <span id="data-source-badge" style="font-size:10px;padding:2px 10px;border-radius:20px;border:1px solid rgba(245,158,11,.3);background:rgba(245,158,11,.06);color:var(--text-2);transition:all .4s;">
-      <span style="color:var(--yellow);font-weight:700;">⚠ 演示数据</span>
-    </span>
+    <span id="data-source-badge" style="font-size:10px;padding:2px 10px;border-radius:20px;border:1px solid transparent;background:transparent;color:var(--text-2);transition:all .4s;display:none;"></span>
     <div style="width:1px;height:14px;background:var(--border2);"></div>
     <span class="live-dot"></span>
     <span class="tb-time" id="ts">-</span>
@@ -1869,11 +1888,13 @@ function showDataSourceBadge(mode, updatedAt) {
   const el = document.getElementById("data-source-badge");
   if (!el) return;
   if (mode === "live") {
+    el.style.display = "inline-block";
     el.innerHTML = `<span style="color:var(--green);font-weight:700;">🟢 实时数据</span> 更新于 ${updatedAt}`;
     el.style.background = "rgba(16,185,129,.08)";
     el.style.borderColor = "rgba(16,185,129,.3)";
   } else {
-    el.innerHTML = `<span style="color:var(--yellow);font-weight:700;">⚠ 演示数据</span> 未检测到 data.json`;
+    // mock模式静默不显示
+    el.style.display = "none";
   }
 }
 
