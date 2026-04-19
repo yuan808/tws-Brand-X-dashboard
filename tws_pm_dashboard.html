@@ -62,11 +62,23 @@ function __initDashboard() {
   secs.forEach(s=>obs.observe(s));
 }
 window.addEventListener('DOMContentLoaded', function() {
-  var s = document.createElement('script');
-  s.src = 'https://cdn.plot.ly/plotly-2.32.0.min.js';
-  s.onload = __initDashboard;
-  s.onerror = function(){ console.error('Plotly CDN 加载失败，请检查网络'); };
-  document.head.appendChild(s);
+  var CDN_LIST = [
+    'https://cdn.plot.ly/plotly-2.32.0.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.32.0/plotly.min.js',
+    'https://unpkg.com/plotly.js@2.32.0/dist/plotly.min.js'
+  ];
+  function tryLoad(idx) {
+    if (idx >= CDN_LIST.length) {
+      document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:sans-serif;color:#4A5070;"><h2>⚠️ 图表库加载失败</h2><p>请检查网络连接后刷新页面</p></div>';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = CDN_LIST[idx];
+    s.onload = __initDashboard;
+    s.onerror = function() { tryLoad(idx + 1); };
+    document.head.appendChild(s);
+  }
+  tryLoad(0);
 });
 </script>
 <style>
