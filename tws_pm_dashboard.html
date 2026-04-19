@@ -641,21 +641,15 @@ img, svg { max-width: 100%; }
 
   /* 顶栏适配 */
   .topbar {
-    padding: 0 12px;
-    height: 48px;
-    /* 覆盖桌面端为 sidebar 留出的 padding-left */
-    padding-left: 12px !important;
+    padding: 0 12px !important;
+    height: 44px;
   }
-  .topbar .tb-right > *:not(:last-child):not(.live-dot):not(.tb-time) {
-    display: none;
-  }
-  /* 手机端隐藏 Brand X 副标题，只保留 badge */
-  .tb-brand span[style*="font-size:11px"] {
-    display: none;
-  }
-  /* 手机端主页按钮保留文字，用较小样式 */
-  .tb-home-text { display: inline; }
-  .tb-home-btn { font-size: 11px !important; padding: 3px 7px !important; }
+  /* 手机端：隐藏「主页」按钮、时间、data-source-badge，只留 ≡ + Brand X + 绿点 */
+  .tb-home-btn { display: none !important; }
+  .tb-time { display: none; }
+  #data-source-badge { display: none !important; }
+  /* 隐藏 Brand X 副标题，只保留 badge */
+  .tb-brand span[style*="font-size:11px"] { display: none; }
   .mob-menu-btn { display: flex; }
 
   /* Main 区域去掉 sidebar 偏移 */
