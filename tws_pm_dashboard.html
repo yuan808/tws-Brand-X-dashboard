@@ -531,6 +531,9 @@ body::after{
 }
 .comp-matrix-tbl tbody tr:last-child:hover td{background:rgba(245,158,11,.10);}
 
+/* ─── 数据来源移动端卡片列表（桌面隐藏） ─── */
+.sources-cards { display: none; }
+
 /* ─── 雷达图双列布局（全局） ─── */
 .radar-grid {
   display: grid;
@@ -693,6 +696,20 @@ img, svg { max-width: 100%; }
   /* 表格横向滚动 */
   .tbl { font-size: 11px; }
   .tbl th, .tbl td { padding: 7px 8px; white-space: nowrap; }
+
+  /* 数据来源表格：移动端改为卡片列表 */
+  .sources-tbl-wrap { display: none; }
+  .sources-cards { display: block; }
+
+  /* 产品/新闻表格：允许横向滚动提示 */
+  .tbl-wrap::after {
+    content: "← 左右滑动查看更多 →";
+    display: block;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(140,150,190,.7);
+    padding: 4px 0 2px;
+  }
 
   /* 词云 */
   #word_cloud_grouped { overflow-x: auto; }
@@ -1084,7 +1101,7 @@ img, svg { max-width: 100%; }
 
   <!-- 数据来源表格 -->
   <div class="card" style="padding:0;">
-    <div class="tbl-wrap">
+    <div class="tbl-wrap sources-tbl-wrap">
     <table class="tbl" style="font-size:11px;">
       <thead>
         <tr>
@@ -1226,6 +1243,60 @@ img, svg { max-width: 100%; }
       </tbody>
     </table>
     </div><!-- /tbl-wrap -->
+  </div>
+
+  <!-- 移动端卡片版数据来源 -->
+  <div class="sources-cards">
+    <style>
+      .src-row{background:rgba(255,255,255,.42);border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid rgba(255,255,255,.7);}
+      .src-row-title{font-size:12px;font-weight:700;color:#1A1D40;margin-bottom:4px;}
+      .src-row-sub{font-size:10px;color:var(--text-3);margin-bottom:6px;}
+      .src-row-body{font-size:11px;color:#4A5070;line-height:1.7;}
+      .src-row-body a{color:var(--accent);}
+      .src-row-freq{display:inline-block;margin-top:5px;font-size:10px;color:var(--text-3);background:rgba(180,190,220,.15);padding:1px 8px;border-radius:10px;}
+    </style>
+    <div class="src-row">
+      <div class="src-row-title">📊 核心 KPI</div>
+      <div class="src-row-sub">出货量·营收·AUR·毛利率·净利 &nbsp;<span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span> <span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body">Brand X 财务为模拟数据；市场数据来自 <a href="https://www.ithome.com/0/834/481.htm" target="_blank">Canalys 2024年报（IT之家）</a></div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">💰 Brand X 财务指标</div>
+      <div class="src-row-sub">营收·出货量·AUR·毛利率·净利润 &nbsp;<span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span></div>
+      <div class="src-row-body">全部为模拟假设数据，仅供框架展示</div>
+      <span class="src-row-freq">手动维护</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">📦 竞品出货量追踪</div>
+      <div class="src-row-sub">2023–2026 各品牌季度出货 &nbsp;<span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span> <span style="background:#8B92B8;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">Mock</span></div>
+      <div class="src-row-body"><a href="https://www.ithome.com/0/834/481.htm" target="_blank">IT之家·Canalys 2024年报</a>；2025–2026为模拟预测</div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🥧 市占率份额</div>
+      <div class="src-row-sub">全球·Q3 vs Q4·中国市场 &nbsp;<span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body"><a href="https://www.ithome.com/0/834/481.htm" target="_blank">Canalys 2024全年 & Q4报告（IT之家）</a></div>
+      <span class="src-row-freq">季度更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🆚 产品 & 价格对比</div>
+      <div class="src-row-sub">定价·核心亮点·评分 &nbsp;<span style="background:#F59E0B;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">爬虫</span> <span style="background:#06B6D4;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">API</span> <span style="background:#10B981;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">真实</span></div>
+      <div class="src-row-body">京东价格/评分 API · 拼多多爬虫 · 品牌官网公开信息</div>
+      <span class="src-row-freq">每日更新</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">📰 供应链 & 新品动向</div>
+      <div class="src-row-sub">行业新闻·发布动态 &nbsp;<span style="background:#F59E0B;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">爬虫</span></div>
+      <div class="src-row-body"><a href="https://36kr.com/feed" target="_blank">36kr RSS</a> · <a href="https://www.ithome.com/rss/" target="_blank">IT之家 RSS</a> · <a href="http://www.199it.com/feed" target="_blank">199IT RSS</a></div>
+      <span class="src-row-freq">每日2次</span>
+    </div>
+    <div class="src-row">
+      <div class="src-row-title">🔥 热搜词洞察</div>
+      <div class="src-row-sub">淘宝实时热词 &nbsp;<span style="background:#06B6D4;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">API</span> <span style="background:#6366F1;color:#fff;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;">实时</span></div>
+      <div class="src-row-body">淘宝 Suggest API（JSONP），每次打开页面自动抓取</div>
+      <span class="src-row-freq">每次打开</span>
+    </div>
   </div>
 
   <div class="note" style="margin-top:12px;">
