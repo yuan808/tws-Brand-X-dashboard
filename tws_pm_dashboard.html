@@ -60,6 +60,65 @@ function __initDashboard() {
   },{rootMargin:"-20% 0px -60% 0px"});
   secs.forEach(s=>obs.observe(s));
 }
+// ── 移动端侧栏抽屉 ──
+function openSidebar() {
+  document.querySelector('.sidebar').classList.add('mob-open');
+  document.getElementById('sb-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('sb-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+// 点击侧栏导航项后自动关闭抽屉
+document.addEventListener('click', function(e) {
+  var item = e.target.closest('.sb-item');
+  if (item && window.innerWidth < 768) {
+    setTimeout(closeSidebar, 120);
+  }
+});
+
+// ── 底部导航高亮同步 ──
+function mnavGo(hash, btn) {
+  document.querySelectorAll('.mnav-item').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var el = document.querySelector(hash);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+// 滚动时同步底部导航高亮
+(function(){
+  var sectionMap = {kpi:0, financial:1, shipment:1, share:2, products:3, radar:3, news:4, sentiment:4, sources:4};
+  window.addEventListener('scroll', function(){
+    if (window.innerWidth >= 768) return;
+    var btns = document.querySelectorAll('.mnav-item');
+    var cur = '';
+    document.querySelectorAll('.section').forEach(function(s){
+      var rect = s.getBoundingClientRect();
+      if (rect.top <= 120) cur = s.id;
+    });
+    if (cur && sectionMap[cur] !== undefined) {
+      btns.forEach(function(b,i){ b.classList.toggle('active', i === sectionMap[cur]); });
+    }
+  }, {passive:true});
+})();
+
+// ── 窗口 resize 时让 Plotly 图表自适应宽度 ──
+(function(){
+  var timer;
+  window.addEventListener('resize', function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      if (typeof Plotly !== 'undefined') {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(el){
+          try { Plotly.Plots.resize(el); } catch(e){}
+        });
+        setTimeout(clearPlotlyBg, 200);
+      }
+    }, 250);
+  });
+})();
+
 window.addEventListener('DOMContentLoaded', function() {
   var CDN_LIST = [
     'https://cdn.plot.ly/plotly-2.32.0.min.js',
@@ -473,30 +532,188 @@ body::after{
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(180,190,220,.4);border-radius:3px;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(99,102,241,.3);}
+
+/* ════════════════════════════════════════
+   📱 移动端响应式适配
+   ════════════════════════════════════════ */
+
+/* ─── 底部导航栏（移动端） ─── */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 400;
+  background: rgba(218,226,255,.92);
+  backdrop-filter: saturate(200%) blur(28px);
+  -webkit-backdrop-filter: saturate(200%) blur(28px);
+  border-top: 1px solid rgba(255,255,255,.65);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  display: none;
+  justify-content: space-around;
+  align-items: flex-end;
+}
+.mnav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  text-decoration: none;
+  color: var(--text-3);
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: color .2s;
+  min-width: 44px;
+  flex: 1;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+.mnav-item .mni { font-size: 18px; line-height: 1; }
+.mnav-item.active { color: var(--accent); }
+.mnav-item.active .mni {
+  filter: drop-shadow(0 0 4px rgba(99,102,241,.4));
+}
+
+/* ─── 移动端顶栏汉堡菜单按钮 ─── */
+.mob-menu-btn {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(200,210,240,.4);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ─── 移动端侧栏抽屉遮罩 ─── */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 290;
+  background: rgba(20,30,80,.25);
+  backdrop-filter: blur(2px);
+}
+.sidebar-overlay.open { display: block; }
+
+@media (max-width: 767px) {
+  /* 隐藏原侧边栏默认显示，改为抽屉 */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 500;
+    width: 220px;
+  }
+  .sidebar.mob-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(60,80,200,.18);
+  }
+
+  /* 顶栏适配 */
+  .topbar {
+    padding: 0 12px;
+    height: 48px;
+  }
+  .topbar .tb-right > *:not(:last-child):not(.live-dot):not(.tb-time) {
+    display: none;
+  }
+  .mob-menu-btn { display: flex; }
+
+  /* Main 区域去掉 sidebar 偏移 */
+  .main {
+    margin-left: 0;
+    padding: 12px 12px 90px;
+  }
+
+  /* 底部导航栏显示 */
+  .mobile-nav { display: flex; }
+
+  /* 隐藏手机提示（让页面直接正常显示） */
+  #mobile-tip { display: none !important; }
+
+  /* 过滤栏 */
+  .filter-bar {
+    gap: 6px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+  }
+  .filter-bar .filter-label { font-size: 9px; }
+  .filter-bar .filter-reset { padding: 4px 8px; font-size: 10px; }
+  .filter-info { display: none; }
+  .fselect { font-size: 11px; padding: 3px 20px 3px 8px; }
+
+  /* KPI 网格：2列 */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpi { padding: 12px 10px; }
+  .kpi-val { font-size: 20px; }
+  .kpi-lbl { font-size: 9px; }
+
+  /* 通用双列→单列 */
+  .g2 { grid-template-columns: 1fr; gap: 10px; }
+  .g3 { grid-template-columns: 1fr; gap: 10px; }
+  .g13 { grid-template-columns: 1fr; gap: 10px; }
+
+  /* 卡片 */
+  .card { padding: 12px; }
+  .card-title { font-size: 12px; }
+  .card-sub { font-size: 10px; }
+
+  /* 雷达图区域：单列 */
+  .radar-grid { grid-template-columns: 1fr !important; }
+  #ch_radar { margin: 0 auto; }
+  #radar_insight { min-height: 200px; }
+
+  /* 表格横向滚动 */
+  .card > .tbl,
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; display: block; }
+  .tbl { min-width: 560px; font-size: 11px; }
+  .tbl th, .tbl td { padding: 7px 8px; white-space: nowrap; }
+
+  /* 词云 */
+  #word_cloud_grouped { overflow-x: auto; }
+
+  /* 来源区块 chip 换行 */
+  .src-chips { gap: 5px; }
+  .src-a { font-size: 10px; padding: 3px 8px; }
+
+  /* 隐藏 section 右侧 sec-tag（移动端没空间） */
+  .sec-hd .sec-tag { display: none; }
+
+  /* 图表高度收缩 */
+  .plotly-graph-div { max-width: 100%; }
+}
+
+@media (max-width: 400px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .kpi-val { font-size: 17px; }
+  .main { padding: 10px 8px 88px; }
+}
+
+/* ─── 横屏平板（768~1024px）两列适配 ─── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --sidebar-w: 160px; }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .g3 { grid-template-columns: 1fr 1fr; }
+  .kpi-val { font-size: 22px; }
+}
 </style>
 </head>
 <body>
 
-<!-- 手机竖屏提示 -->
-<div id="mobile-tip" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(145deg,#E8EDFF,#F0F7FF);flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center;">
-  <div style="font-size:48px;">🖥️</div>
-  <div style="font-size:18px;font-weight:700;color:#1A1D2E;">建议横屏或电脑查看</div>
-  <div style="font-size:13px;color:#4A5070;line-height:1.8;">此仪表板为桌面端数据看板<br>竖屏下布局可能显示异常</div>
-  <button onclick="document.getElementById('mobile-tip').style.display='none'" style="margin-top:8px;padding:10px 28px;background:#6366F1;color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;">继续查看</button>
-</div>
-<script>
-(function(){
-  function checkMobile(){
-    var isMobile = window.innerWidth < 768;
-    var isPortrait = window.innerHeight > window.innerWidth;
-    var tip = document.getElementById('mobile-tip');
-    if(tip) tip.style.display = (isMobile && isPortrait) ? 'flex' : 'none';
-  }
-  window.addEventListener('DOMContentLoaded', checkMobile);
-  window.addEventListener('resize', checkMobile);
-  window.addEventListener('orientationchange', function(){ setTimeout(checkMobile, 300); });
-})();
-</script>
+<!-- 侧栏遮罩（移动端抽屉） -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<!-- 底部导航栏（移动端） -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mnav-item active" onclick="mnavGo('#kpi',this)"><span class="mni">📊</span>KPI</button>
+  <button class="mnav-item" onclick="mnavGo('#shipment',this)"><span class="mni">📦</span>出货量</button>
+  <button class="mnav-item" onclick="mnavGo('#share',this)"><span class="mni">🥧</span>市占率</button>
+  <button class="mnav-item" onclick="mnavGo('#products',this)"><span class="mni">🆚</span>竞品</button>
+  <button class="mnav-item" onclick="mnavGo('#sentiment',this)"><span class="mni">🔥</span>热词</button>
+  <button class="mnav-item" onclick="openSidebar()"><span class="mni">☰</span>更多</button>
+</nav>
 
 <!-- ════ SIDEBAR ════ -->
 <nav class="sidebar">
@@ -538,9 +755,12 @@ body::after{
 
 <!-- ════ TOPBAR ════ -->
 <div class="topbar">
-  <div class="tb-brand">
-    <span class="tb-badge">Brand X</span>
-    <span style="font-size:11px;color:var(--text-3);margin-left:4px;">TWS 耳机品类</span>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="mob-menu-btn" onclick="openSidebar()" aria-label="打开菜单">☰</button>
+    <div class="tb-brand">
+      <span class="tb-badge">Brand X</span>
+      <span style="font-size:11px;color:var(--text-3);margin-left:4px;">TWS 耳机品类</span>
+    </div>
   </div>
   <div class="tb-right">
     <span style="font-size:11px;color:var(--text-3);">Canalys · JD · PDD · Taobao · IT之家</span>
@@ -674,12 +894,14 @@ body::after{
     <span class="sec-tag">来源：京东 / 天猫 / 各品牌官网 公开价格 2026-04</span>
   </div>
   <div class="card">
-    <table class="tbl">
-      <thead>
-        <tr><th>品牌</th><th>型号</th><th>官方定价</th><th>价格来源</th><th>发布时间</th><th>核心亮点</th><th>平台评分</th><th>评论量</th><th>威胁程度</th></tr>
-      </thead>
-      <tbody id="prod_tbody"></tbody>
-    </table>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr><th>品牌</th><th>型号</th><th>官方定价</th><th>价格来源</th><th>发布时间</th><th>核心亮点</th><th>平台评分</th><th>评论量</th><th>威胁程度</th></tr>
+        </thead>
+        <tbody id="prod_tbody"></tbody>
+      </table>
+    </div>
     <div class="note" style="margin-top:12px;">价格数据来自各品牌官网及京东/天猫旗舰店公开标价，截至 2026年4月。</div>
   </div>
 
@@ -746,7 +968,7 @@ body::after{
     <!-- 维度 Chip 标签 -->
     <div id="radar_chips" style="display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 14px;"></div>
     <!-- 雷达图 + 分析面板 双列 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+    <div class="radar-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
       <div id="ch_radar"></div>
       <div id="radar_insight" style="min-height:380px;display:flex;align-items:center;justify-content:center;">
         <div style="text-align:center;color:#8B92B8;">
@@ -769,10 +991,12 @@ body::after{
     <span class="sec-tag">来源：36kr · IT之家 · 潮电智库 · MSN科技</span>
   </div>
   <div class="card">
-    <table class="tbl">
-      <thead><tr><th>日期</th><th>类别</th><th>标题</th><th>摘要</th><th>影响</th><th>来源</th></tr></thead>
-      <tbody id="news_tbody"></tbody>
-    </table>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>日期</th><th>类别</th><th>标题</th><th>摘要</th><th>影响</th><th>来源</th></tr></thead>
+        <tbody id="news_tbody"></tbody>
+      </table>
+    </div>
   </div>
 </section>
 
@@ -837,6 +1061,7 @@ body::after{
 
   <!-- 数据来源表格 -->
   <div class="card" style="padding:0;overflow:hidden;">
+    <div class="tbl-wrap">
     <table class="tbl" style="font-size:11px;">
       <thead>
         <tr>
@@ -977,6 +1202,7 @@ body::after{
         </tr>
       </tbody>
     </table>
+    </div><!-- /tbl-wrap -->
   </div>
 
   <div class="note" style="margin-top:12px;">
