@@ -644,8 +644,16 @@ img, svg { max-width: 100%; }
     padding: 0 12px !important;
     height: 44px;
   }
-  /* 手机端：隐藏「主页」按钮、时间、data-source-badge，只留 ≡ + Brand X + 绿点 */
-  .tb-home-btn { display: none !important; }
+  /* 手机端：显示极简主页按钮，隐藏时间和数据来源badge */
+  .tb-home-btn {
+    display: inline-flex !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 2px 4px !important;
+    font-size: 11px !important;
+    color: var(--text-2) !important;
+    gap: 2px !important;
+  }
   .tb-time { display: none; }
   #data-source-badge { display: none !important; }
   /* 隐藏 Brand X 副标题，只保留 badge */
