@@ -1778,16 +1778,19 @@ function renderRadar() {
     marker:{size:4,color:toSoftRgba(d.color,0.9)},
     hovertemplate:`<b>${d.name}</b><br>%{theta}: %{r}<extra></extra>`,
   })),{
-    ...BASE, height: isMob ? 320 : 400,
+    ...BASE, height: isMob ? 360 : 400,
     polar:{
       bgcolor:"rgba(235,240,255,0.3)",
-      domain:{x:[0.05,0.95],y:[0.05,0.95]},
+      // 移动端图例放上方，polar domain 向下偏移腾出上方空间
+      domain: isMob ? {x:[0.02,0.98], y:[0.18,1.0]} : {x:[0.05,0.95], y:[0.05,0.95]},
       radialaxis:{visible:true,range:[3,5.2],gridcolor:"rgba(180,190,220,.2)",tickfont:{size:8,color:"#8B92B8"},tickcolor:"rgba(0,0,0,0)",linecolor:"rgba(180,190,220,.2)"},
       angularaxis:{gridcolor:"rgba(180,190,220,.18)",linecolor:"rgba(180,190,220,.3)",tickfont:{size: isMob ? 9 : 10, color:"#4A5070"}}
     },
     showlegend:true,
-    legend:{font:{size: isMob ? 10 : 11, color:"#4A5070"},orientation:"h",yanchor:"bottom",y: isMob ? -0.32 : -0.22,xanchor:"center",x:.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0,tracegroupgap:4},
-    margin: isMob ? {l:65,r:65,t:40,b:120} : {l:55,r:55,t:40,b:100},
+    legend: isMob
+      ? {font:{size:10,color:"#4A5070"},orientation:"h",yanchor:"top",y:1.02,xanchor:"center",x:0.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0,tracegroupgap:2}
+      : {font:{size:11,color:"#4A5070"},orientation:"h",yanchor:"bottom",y:-0.22,xanchor:"center",x:0.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+    margin: isMob ? {l:55,r:55,t:10,b:20} : {l:55,r:55,t:40,b:100},
   }, CONF);
 }
 
