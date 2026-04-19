@@ -711,6 +711,12 @@ img, svg { max-width: 100%; }
     padding: 4px 0 2px;
   }
 
+  /* 新闻表格移动端：隐藏来源列，让标题有空间 */
+  #news_tbody tr td:nth-child(6),
+  #news_tbody tr td:nth-child(5),
+  .tbl thead tr th:nth-child(6),
+  .tbl thead tr th:nth-child(5) { display: none; }
+
   /* 词云 */
   #word_cloud_grouped { overflow-x: auto; }
 
@@ -721,8 +727,12 @@ img, svg { max-width: 100%; }
   /* 隐藏 section 右侧 sec-tag（移动端没空间） */
   .sec-hd .sec-tag { display: none; }
 
-  /* 图表高度收缩 */
+  /* 图表高度收缩，禁止触摸缩放 */
   .plotly-graph-div { max-width: 100%; }
+  .js-plotly-plot, .plotly-graph-div {
+    touch-action: none !important;
+    pointer-events: none !important;
+  }
 }
 
 @media (max-width: 400px) {
@@ -1430,14 +1440,23 @@ function getViewData() {
 // ════════════════════════════════════════
 // ④ Plotly 公共配置
 // ════════════════════════════════════════
-const CONF = {displayModeBar: false, responsive: true};
+const CONF = {
+  displayModeBar: false,
+  responsive: true,
+  scrollZoom: false,
+  doubleClick: false,
+  showTips: false,
+  modeBarButtonsToRemove: ['zoom2d','pan2d','select2d','lasso2d','zoomIn2d','zoomOut2d','autoScale2d','resetScale2d','zoom3d','pan3d','orbitRotation','tableRotation','resetCameraDefault3d','resetCameraLastSave3d','hoverClosest3d','hoverClosestCartesian','hoverCompareCartesian','zoomInGeo','zoomOutGeo','resetGeo','hoverClosestGeo','hoverClosestGl2d','hoverClosestPie','toggleHover','resetViews','toggleSpikelines','resetViewMapbox'],
+  staticPlot: false,
+};
 const BASE = {
   plot_bgcolor:"rgba(0,0,0,0)",
   paper_bgcolor:"rgba(0,0,0,0)",
   font:{family:"'Inter','SF Pro Display','PingFang SC',sans-serif", size:12, color:"#4A5070"},
-  hovermode:"x unified",
+  hovermode: window.innerWidth < 768 ? false : "x unified",
   hoverlabel:{bgcolor:"rgba(26,29,46,.88)", font:{color:"#fff",size:12}, bordercolor:"rgba(255,255,255,.15)", namelength:-1},
   margin:{l:52,r:18,t:32,b:40},
+  dragmode: false,
 };
 // iOS 柔和配色 — 用实心色（图例色块显示正常），视觉上通过透明边框产生轻盈感
 const PIE_COLORS = ["#C8CAFF","#6366F1","#06B6D4","#F59E0B","#8B5CF6","#F43F5E","#10B981"];
