@@ -720,11 +720,11 @@ img, svg { max-width: 100%; }
     padding: 4px 0 2px;
   }
 
-  /* 新闻表格移动端：隐藏来源列，让标题有空间 */
-  #news_tbody tr td:nth-child(6),
-  #news_tbody tr td:nth-child(5),
-  .tbl thead tr th:nth-child(6),
-  .tbl thead tr th:nth-child(5) { display: none; }
+  /* 新闻表格移动端：隐藏来源/影响列，让标题有空间（只作用于新闻表格） */
+  #news #news_tbody tr td:nth-child(6),
+  #news #news_tbody tr td:nth-child(5),
+  #news .tbl thead tr th:nth-child(6),
+  #news .tbl thead tr th:nth-child(5) { display: none; }
 
   /* 词云 */
   #word_cloud_grouped { overflow-x: auto; }
