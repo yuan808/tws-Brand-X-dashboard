@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "updated_at": "2026-04-19T13:13:34.662134+00:00",
+    "updated_at_cn": "2026-04-19 13:13",
+    "version": "1.0"
+  },
+  "products": [
+    {
+      "brand": "苹果 AirPods Pro 3",
+      "product_name": "Apple AirPods Pro (第三代)",
+      "jd_price": null,
+      "jd_origin_price": null,
+      "jd_rating": null,
+      "jd_review_count": null,
+      "jd_url": "https://item.jd.com/100046036924.html",
+      "pdd_min_price": null,
+      "pdd_sales": null,
+      "price_diff_pct": null
+    },
+    {
+      "brand": "索尼 WF-1000XM5",
+      "product_name": "Sony WF-1000XM5",
+      "jd_price": null,
+      "jd_origin_price": null,
+      "jd_rating": null,
+      "jd_review_count": null,
+      "jd_url": "https://item.jd.com/10080044644153.html",
+      "pdd_min_price": null,
+      "pdd_sales": null,
+      "price_diff_pct": null
+    },
+    {
+      "brand": "华为 FreeBuds Pro 4",
+      "product_name": "HUAWEI FreeBuds Pro 4",
+      "jd_price": null,
+      "jd_origin_price": null,
+      "jd_rating": null,
+      "jd_review_count": null,
+      "jd_url": "https://item.jd.com/10113739463179.html",
+      "pdd_min_price": null,
+      "pdd_sales": null,
+      "price_diff_pct": null
+    },
+    {
+      "brand": "小米 Redmi Buds 8",
+      "product_name": "Redmi Buds 8",
+      "jd_price": null,
+      "jd_origin_price": null,
+      "jd_rating": null,
+      "jd_review_count": null,
+      "jd_url": "https://item.jd.com/10124660095441.html",
+      "pdd_min_price": null,
+      "pdd_sales": null,
+      "price_diff_pct": null
+    },
+    {
+      "brand": "三星 Galaxy Buds3 Pro",
+      "product_name": "史丹利STANLEY 断线钳 大力钳电缆钳钢筋剪钢丝钳 12...",
+      "jd_price": null,
+      "jd_origin_price": null,
+      "jd_rating": null,
+      "jd_review_count": null,
+      "jd_url": "https://item.jd.com/100099012419.html",
+      "pdd_min_price": null,
+      "pdd_sales": null,
+      "price_diff_pct": null
+    }
+  ],
+  "news": [],
+  "taobao": {
+    "top_words": [],
+    "categories": {},
+    "category_stats": {},
+    "total_words": 0
+  }
+}
