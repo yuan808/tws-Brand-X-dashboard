@@ -1030,6 +1030,13 @@ img, svg { max-width: 100%; }
     <div class="card-sub">点击下方维度标签，查看该维度的竞品深度分析 👇</div>
     <!-- 维度 Chip 标签 -->
     <div id="radar_chips" style="display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 14px;"></div>
+    <!-- 移动端 HTML 图例（桌面端隐藏，由 Plotly 自己渲染） -->
+    <div id="radar_legend_mob" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#4A5070;"><span style="display:inline-block;width:18px;height:2px;background:#6366F1;border-radius:2px;"></span>苹果</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#4A5070;"><span style="display:inline-block;width:18px;height:2px;background:#06B6D4;border-radius:2px;"></span>索尼</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#4A5070;"><span style="display:inline-block;width:18px;height:2px;background:#F43F5E;border-radius:2px;"></span>华为</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#4A5070;"><span style="display:inline-block;width:18px;height:2px;background:#10B981;border-radius:2px;"></span>Brand X</span>
+    </div>
     <!-- 雷达图 + 分析面板 双列 -->
     <div class="radar-grid">
       <div id="ch_radar"></div>
@@ -1768,6 +1775,9 @@ function renderRadar() {
   // 雷达图配色转成柔和rgba
   const toSoftRgba=(hex,a)=>{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;};
   const isMob = window.innerWidth < 768;
+  // 移动端显示 HTML 图例，Plotly 内置图例关闭
+  const mobLegend = document.getElementById("radar_legend_mob");
+  if (mobLegend) mobLegend.style.display = isMob ? "flex" : "none";
   Plotly.react("ch_radar", data.map(d=>({
     type:"scatterpolar",
     r:[...d.scores,d.scores[0]], theta:[...cats,cats[0]],
@@ -1778,19 +1788,16 @@ function renderRadar() {
     marker:{size:4,color:toSoftRgba(d.color,0.9)},
     hovertemplate:`<b>${d.name}</b><br>%{theta}: %{r}<extra></extra>`,
   })),{
-    ...BASE, height: isMob ? 360 : 400,
+    ...BASE, height: isMob ? 300 : 400,
     polar:{
       bgcolor:"rgba(235,240,255,0.3)",
-      // 移动端图例放上方，polar domain 向下偏移腾出上方空间
-      domain: isMob ? {x:[0.02,0.98], y:[0.18,1.0]} : {x:[0.05,0.95], y:[0.05,0.95]},
+      domain:{x:[0.05,0.95], y:[0.05,0.95]},
       radialaxis:{visible:true,range:[3,5.2],gridcolor:"rgba(180,190,220,.2)",tickfont:{size:8,color:"#8B92B8"},tickcolor:"rgba(0,0,0,0)",linecolor:"rgba(180,190,220,.2)"},
       angularaxis:{gridcolor:"rgba(180,190,220,.18)",linecolor:"rgba(180,190,220,.3)",tickfont:{size: isMob ? 9 : 10, color:"#4A5070"}}
     },
-    showlegend:true,
-    legend: isMob
-      ? {font:{size:10,color:"#4A5070"},orientation:"h",yanchor:"top",y:1.02,xanchor:"center",x:0.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0,tracegroupgap:2}
-      : {font:{size:11,color:"#4A5070"},orientation:"h",yanchor:"bottom",y:-0.22,xanchor:"center",x:0.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0},
-    margin: isMob ? {l:55,r:55,t:10,b:20} : {l:55,r:55,t:40,b:100},
+    showlegend: !isMob,
+    legend:{font:{size:11,color:"#4A5070"},orientation:"h",yanchor:"bottom",y:-0.22,xanchor:"center",x:0.5,bgcolor:"rgba(0,0,0,0)",borderwidth:0},
+    margin: isMob ? {l:52,r:52,t:20,b:20} : {l:55,r:55,t:40,b:100},
   }, CONF);
 }
 
