@@ -123,6 +123,8 @@ function mnavGo(hash, btn) {
 
 window.addEventListener('DOMContentLoaded', function() {
   var CDN_LIST = [
+    'https://cdn.bootcdn.net/ajax/libs/plotly.js/2.32.0/plotly.min.js',
+    'https://cdn.staticfile.org/plotly.js/2.32.0/plotly.min.js',
     'https://cdn.plot.ly/plotly-2.32.0.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.32.0/plotly.min.js',
     'https://unpkg.com/plotly.js@2.32.0/dist/plotly.min.js'
@@ -134,8 +136,12 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     var s = document.createElement('script');
     s.src = CDN_LIST[idx];
-    s.onload = __initDashboard;
-    s.onerror = function() { tryLoad(idx + 1); };
+    var done = false;
+    var timer = setTimeout(function() {
+      if (!done) { done = true; s.onload = s.onerror = null; tryLoad(idx + 1); }
+    }, 8000);
+    s.onload = function() { if (!done) { done = true; clearTimeout(timer); __initDashboard(); } };
+    s.onerror = function() { if (!done) { done = true; clearTimeout(timer); tryLoad(idx + 1); } };
     document.head.appendChild(s);
   }
   tryLoad(0);
