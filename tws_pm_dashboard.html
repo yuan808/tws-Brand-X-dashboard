@@ -35,55 +35,26 @@ function clearPlotlyBg() {
   });
 }
 
-// 懒渲染状态记录
-const __lazyRendered = {};
-
 function __initDashboard() {
   if (typeof Plotly === 'undefined') {
     setTimeout(__initDashboard, 100);
     return;
   }
   initSelects();
-
-  // ── 首屏立即渲染（财务指标区域，进入视口最快）
-  renderRev();
-  renderAUR();
-  renderProfit();
-  __lazyRendered['financial'] = true;
-
-  // ── 其余图表懒渲染：进入视口时才渲染
-  const lazyMap = {
-    'shipment': () => { renderShip(); renderPie(); },
-    'share':    () => { renderDelta(); renderChina(); },
-    'radar':    () => { renderRadar(); },
-  };
-  const lazyObs = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting && lazyMap[e.target.id] && !__lazyRendered[e.target.id]) {
-        __lazyRendered[e.target.id] = true;
-        lazyMap[e.target.id]();
-        setTimeout(clearPlotlyBg, 200);
-      }
-    });
-  }, { rootMargin: '200px 0px' });
-  Object.keys(lazyMap).forEach(id => {
-    const el = document.getElementById(id);
-    if (el) lazyObs.observe(el);
-  });
-
-  // ── data.json & 热词（异步，不阻塞渲染）
+  refreshAllCharts();
+  renderPie();
+  renderDelta();
+  renderChina();
+  renderRadar();
+  // 图表全部渲染完成后隐藏加载提示
+  document.querySelectorAll('.chart-loading-tip').forEach(el => el.style.display = 'none');
   fetchLiveData();
   fetchTaobaoWords();
-
-  // ── 清背景
   setTimeout(clearPlotlyBg, 300);
   setTimeout(clearPlotlyBg, 800);
-
-  // ── 时间戳
+  setTimeout(clearPlotlyBg, 2000);
   const now = new Date().toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
   ["ts","ts2","ts3"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=now;});
-
-  // ── 侧栏高亮
   const secs=document.querySelectorAll(".section");
   const navs=document.querySelectorAll(".sb-item");
   const obs=new IntersectionObserver(entries=>{
@@ -774,6 +745,20 @@ img, svg { max-width: 100%; }
   .g3 { grid-template-columns: 1fr 1fr; }
   .kpi-val { font-size: 22px; }
 }
+.chart-loading-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+  font-size: 14px;
+  color: #8B92B8;
+  letter-spacing: .05em;
+  animation: tip-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tip-pulse {
+  0%,100% { opacity: .5; }
+  50%      { opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -900,18 +885,18 @@ img, svg { max-width: 100%; }
     <div class="card">
       <div class="card-title">季度营收 & 出货量</div>
       <div class="card-sub" id="rev-sub">REV（左轴 M USD）/ 出货量（右轴 M台）</div>
-      <div id="ch_rev"></div>
+      <div id="ch_rev"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
     </div>
     <div class="card">
       <div class="card-title">AUR & 毛利率趋势</div>
       <div class="card-sub" id="aur-sub">AUR（左轴 USD）/ 毛利率（右轴 %）</div>
-      <div id="ch_aur"></div>
+      <div id="ch_aur"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
     </div>
   </div>
   <div class="card" style="margin-top:14px;">
     <div class="card-title">季度净利润（M USD）</div>
     <div class="card-sub">⚠ 均为模拟数据</div>
-    <div id="ch_profit"></div>
+    <div id="ch_profit"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
   </div>
 </section>
 
@@ -927,7 +912,7 @@ img, svg { max-width: 100%; }
   <div class="card">
     <div class="card-title">全球 TWS 耳机季度出货量（百万台）</div>
     <div class="card-sub" id="ship-sub">堆叠面积图 · 苹果 / 三星 / 小米 / boAt / 华为 / 其他</div>
-    <div id="ch_ship"></div>
+    <div id="ch_ship"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
   </div>
   <div class="note ok">✅ 数据来自 Canalys 季度个人智能音频报告，经 IT之家、199IT、爱集微等媒体转载核实。</div>
 </section>
@@ -945,18 +930,18 @@ img, svg { max-width: 100%; }
     <div class="card">
       <div class="card-title" id="pie-title">2024 全年市占率（全球）</div>
       <div class="card-sub">苹果23% · 三星9% · 小米8% · boAt6% · 华为5% · <span style="color:#10B981;font-weight:700;">Brand X 1%</span> · 其他48%</div>
-      <div id="ch_pie_annual"></div>
+      <div id="ch_pie_annual"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
     </div>
     <div class="card">
       <div class="card-title">2024Q3 vs Q4 市占率变化</div>
       <div class="card-sub">苹果Q4回升至25%（+4pp）；小米维持增长</div>
-      <div id="ch_delta"></div>
+      <div id="ch_delta"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
     </div>
   </div>
   <div class="card" style="margin-top:14px;">
     <div class="card-title">中国市场 2024 全年市占率 TOP5</div>
     <div class="card-sub">小米18%（+50% YoY）· 华为13% · 苹果13% · 漫步者 · 倍思 | 来源：Canalys</div>
-    <div id="ch_china"></div>
+    <div id="ch_china"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
   </div>
   <div class="note ok">✅ 全球数据：Canalys 2024年度报告 · 中国数据：Canalys中国市场报告 · <a href="https://www.ithome.com/0/834/481.htm" target="_blank" style="color:var(--accent);">IT之家报道</a></div>
 </section>
@@ -1053,7 +1038,7 @@ img, svg { max-width: 100%; }
     </div>
     <!-- 雷达图 + 分析面板 双列 -->
     <div class="radar-grid">
-      <div id="ch_radar"></div>
+      <div id="ch_radar"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
       <div id="radar_insight" style="min-height:380px;display:flex;align-items:center;justify-content:center;">
         <div style="text-align:center;color:#8B92B8;">
           <div style="font-size:32px;margin-bottom:8px;">👆</div>
@@ -1103,7 +1088,7 @@ img, svg { max-width: 100%; }
       <div class="card-title">📊 需求结构分布</div>
       <div class="card-sub">各类别累计搜索热度占比</div>
       <div id="cat_badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
-      <div id="ch_cat" style="height:180px;flex-shrink:0;"></div>
+      <div id="ch_cat" style="height:180px;flex-shrink:0;"><div class="chart-loading-tip">图表在路上了&nbsp;等等我&nbsp;马上到&nbsp;🎵</div></div>
       <div style="margin-top:12px;background:var(--surface2);border-radius:var(--r-sm);padding:14px;border:1px solid var(--border2);flex:1;">
         <div style="font-size:12px;font-weight:700;color:var(--text-1);margin-bottom:8px;">💡 洞察摘要</div>
         <ul style="font-size:12px;color:var(--text-2);line-height:2.1;padding-left:16px;list-style:disc;">
@@ -2728,14 +2713,10 @@ const NEWS = [
 // ════════════════════════════════════════
 function refreshAllCharts() {
   renderKPI();
-  // 财务图（首屏必渲染）
+  renderShip();
   renderRev();
   renderAUR();
   renderProfit();
-  // 懒渲染区域：只有已加载过的才重绘
-  if (__lazyRendered['shipment']) { renderShip(); renderPie(); }
-  if (__lazyRendered['share'])    { renderDelta(); renderChina(); }
-  if (__lazyRendered['radar'])    { renderRadar(); }
   if (typeof clearPlotlyBg === 'function') {
     setTimeout(clearPlotlyBg, 150);
     setTimeout(clearPlotlyBg, 500);
