@@ -2292,8 +2292,8 @@ function renderLiveProducts(products) {
         <div>${pddPrice} <span style="font-size:10px;color:var(--text-3);">拼多多</span> ${diffBadge}</div>
       </td>
       <td><a href="${p.jd_url || '#'}" target="_blank" style="color:var(--accent);font-size:11px;">京东链接 🔗</a></td>
-      <td>—</td>
-      <td>—</td>
+      <td style="font-size:11px;color:var(--text-2);white-space:nowrap;">${p.release || "—"}</td>
+      <td style="font-size:11px;color:var(--text-2);max-width:180px;line-height:1.5;">${p.highlight || "—"}</td>
       <td>${rating}</td>
       <td>${reviewCnt}</td>
       <td>${threatBadge(p.brand)}</td>

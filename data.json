@@ -8,6 +8,8 @@
     {
       "brand": "苹果 AirPods Pro 3",
       "product_name": "Apple AirPods Pro (第三代)",
+      "release": "2025-09",
+      "highlight": "H3芯片 / ANC翻倍 / 心率监测 / 实时翻译 / IP57",
       "jd_price": 1899.0,
       "jd_origin_price": 1899.0,
       "jd_rating": 4.9,
@@ -20,6 +22,8 @@
     {
       "brand": "索尼 WF-1000XM5",
       "product_name": "Sony WF-1000XM5",
+      "release": "2023-07",
+      "highlight": "顶级ANC / LDAC无损 / 8小时续航 / 轻量化设计",
       "jd_price": 1183.0,
       "jd_origin_price": 1999.0,
       "jd_rating": 4.8,
@@ -32,6 +36,8 @@
     {
       "brand": "华为 FreeBuds Pro 4",
       "product_name": "HUAWEI FreeBuds Pro 4",
+      "release": "2024-12",
+      "highlight": "星闪连接 / 3麦ANC / 鸿蒙NEXT原生 / 无损音质",
       "jd_price": 1499.0,
       "jd_origin_price": 1499.0,
       "jd_rating": 4.8,
@@ -44,6 +50,8 @@
     {
       "brand": "小米 Redmi Buds 8",
       "product_name": "Redmi Buds 8",
+      "release": "2026-03",
+      "highlight": "14.2mm超大动圈 / 双麦AI降噪 / 37小时续航",
       "jd_price": 119.0,
       "jd_origin_price": 119.0,
       "jd_rating": 4.7,
@@ -56,6 +64,8 @@
     {
       "brand": "三星 Galaxy Buds3 Pro",
       "product_name": "Samsung Galaxy Buds3 Pro",
+      "release": "2024-07",
+      "highlight": "Galaxy AI实时翻译 / 10mm驱动 / IP57 / 刀锋设计",
       "jd_price": 1099.0,
       "jd_origin_price": 1499.0,
       "jd_rating": 4.7,
