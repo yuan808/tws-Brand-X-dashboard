@@ -4,6 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>TWS 耳机品类 · PM 仪表板</title>
+<!-- CDN 预连接，减少 DNS+TLS 握手耗时 -->
+<link rel="preconnect" href="https://cdn.bootcdn.net" crossorigin/>
+<link rel="dns-prefetch" href="https://cdn.bootcdn.net"/>
+<link rel="preconnect" href="https://cdn.staticfile.org" crossorigin/>
+<link rel="dns-prefetch" href="https://cdn.staticfile.org"/>
 <script>
 // Plotly 加载完成后再初始化，避免图表空白
 window.__plotlyReady = false;
@@ -30,27 +35,55 @@ function clearPlotlyBg() {
   });
 }
 
+// 懒渲染状态记录
+const __lazyRendered = {};
+
 function __initDashboard() {
   if (typeof Plotly === 'undefined') {
     setTimeout(__initDashboard, 100);
     return;
   }
   initSelects();
-  refreshAllCharts();
-  renderPie();
-  renderDelta();
-  renderChina();
-  renderRadar();
-  // 尝试拉取爬虫生成的 data.json，用真实数据覆盖 mock
+
+  // ── 首屏立即渲染（财务指标区域，进入视口最快）
+  renderRev();
+  renderAUR();
+  renderProfit();
+  __lazyRendered['financial'] = true;
+
+  // ── 其余图表懒渲染：进入视口时才渲染
+  const lazyMap = {
+    'shipment': () => { renderShip(); renderPie(); },
+    'share':    () => { renderDelta(); renderChina(); },
+    'radar':    () => { renderRadar(); },
+  };
+  const lazyObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && lazyMap[e.target.id] && !__lazyRendered[e.target.id]) {
+        __lazyRendered[e.target.id] = true;
+        lazyMap[e.target.id]();
+        setTimeout(clearPlotlyBg, 200);
+      }
+    });
+  }, { rootMargin: '200px 0px' });
+  Object.keys(lazyMap).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) lazyObs.observe(el);
+  });
+
+  // ── data.json & 热词（异步，不阻塞渲染）
   fetchLiveData();
-  // 启动淘宝热词实时抓取（作为 data.json 不可用时的降级）
   fetchTaobaoWords();
-  // 图表渲染后清除白底，只在初始化时执行几次，不用 MutationObserver（避免死循环）
+
+  // ── 清背景
   setTimeout(clearPlotlyBg, 300);
   setTimeout(clearPlotlyBg, 800);
-  setTimeout(clearPlotlyBg, 2000);
+
+  // ── 时间戳
   const now = new Date().toLocaleString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
   ["ts","ts2","ts3"].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=now;});
+
+  // ── 侧栏高亮
   const secs=document.querySelectorAll(".section");
   const navs=document.querySelectorAll(".sb-item");
   const obs=new IntersectionObserver(entries=>{
@@ -2695,11 +2728,14 @@ const NEWS = [
 // ════════════════════════════════════════
 function refreshAllCharts() {
   renderKPI();
-  renderShip();
+  // 财务图（首屏必渲染）
   renderRev();
   renderAUR();
   renderProfit();
-  // 每次图表重绘后清除白底
+  // 懒渲染区域：只有已加载过的才重绘
+  if (__lazyRendered['shipment']) { renderShip(); renderPie(); }
+  if (__lazyRendered['share'])    { renderDelta(); renderChina(); }
+  if (__lazyRendered['radar'])    { renderRadar(); }
   if (typeof clearPlotlyBg === 'function') {
     setTimeout(clearPlotlyBg, 150);
     setTimeout(clearPlotlyBg, 500);
