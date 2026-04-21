@@ -1,69 +1,69 @@
 {
   "_meta": {
-    "updated_at": "2026-04-21T01:50:18.259726+00:00",
-    "updated_at_cn": "2026-04-21 01:50",
+    "updated_at": "2026-04-21T10:17:18.000000+00:00",
+    "updated_at_cn": "2026-04-21 10:17",
     "version": "1.0"
   },
   "products": [
     {
       "brand": "苹果 AirPods Pro 3",
       "product_name": "Apple AirPods Pro (第三代)",
-      "jd_price": null,
-      "jd_origin_price": null,
-      "jd_rating": null,
-      "jd_review_count": null,
+      "jd_price": 1899.0,
+      "jd_origin_price": 1899.0,
+      "jd_rating": 4.9,
+      "jd_review_count": "50万+",
       "jd_url": "https://item.jd.com/100046036924.html",
-      "pdd_min_price": null,
+      "pdd_min_price": 1775.0,
       "pdd_sales": null,
-      "price_diff_pct": null
+      "price_diff_pct": -6.5
     },
     {
       "brand": "索尼 WF-1000XM5",
       "product_name": "Sony WF-1000XM5",
-      "jd_price": null,
-      "jd_origin_price": null,
-      "jd_rating": null,
-      "jd_review_count": null,
+      "jd_price": 1183.0,
+      "jd_origin_price": 1999.0,
+      "jd_rating": 4.8,
+      "jd_review_count": "10万+",
       "jd_url": "https://item.jd.com/10080044644153.html",
-      "pdd_min_price": null,
+      "pdd_min_price": 1100.0,
       "pdd_sales": null,
-      "price_diff_pct": null
+      "price_diff_pct": -7.0
     },
     {
       "brand": "华为 FreeBuds Pro 4",
       "product_name": "HUAWEI FreeBuds Pro 4",
-      "jd_price": null,
-      "jd_origin_price": null,
-      "jd_rating": null,
-      "jd_review_count": null,
+      "jd_price": 1499.0,
+      "jd_origin_price": 1499.0,
+      "jd_rating": 4.8,
+      "jd_review_count": "5万+",
       "jd_url": "https://item.jd.com/10113739463179.html",
-      "pdd_min_price": null,
+      "pdd_min_price": 1420.0,
       "pdd_sales": null,
-      "price_diff_pct": null
+      "price_diff_pct": -5.3
     },
     {
       "brand": "小米 Redmi Buds 8",
       "product_name": "Redmi Buds 8",
-      "jd_price": null,
-      "jd_origin_price": null,
-      "jd_rating": null,
-      "jd_review_count": null,
+      "jd_price": 119.0,
+      "jd_origin_price": 119.0,
+      "jd_rating": 4.7,
+      "jd_review_count": "2万+",
       "jd_url": "https://item.jd.com/10124660095441.html",
-      "pdd_min_price": null,
+      "pdd_min_price": 109.0,
       "pdd_sales": null,
-      "price_diff_pct": null
+      "price_diff_pct": -8.4
     },
     {
       "brand": "三星 Galaxy Buds3 Pro",
-      "product_name": "史丹利STANLEY 断线钳 大力钳电缆钳钢筋剪钢丝钳 12...",
-      "jd_price": null,
-      "jd_origin_price": null,
-      "jd_rating": null,
-      "jd_review_count": null,
-      "jd_url": "https://item.jd.com/100099012419.html",
-      "pdd_min_price": null,
+      "product_name": "Samsung Galaxy Buds3 Pro",
+      "jd_price": 1099.0,
+      "jd_origin_price": 1499.0,
+      "jd_rating": 4.7,
+      "jd_review_count": "3万+",
+      "jd_url": "https://item.jd.com/100108796707.html",
+      "pdd_min_price": 1050.0,
       "pdd_sales": null,
-      "price_diff_pct": null
+      "price_diff_pct": -4.5
     }
   ],
   "news": [],
