@@ -2548,7 +2548,7 @@ const COMP_DATA = [
    scores:[4,4,4,5,4,4,3,4],
    price:799, price_tier:"中端 ¥500-999", target:"品质升级用户 / 跨平台用户",
    chip:"待定旗舰方案", anc:"目标40dB双向ANC", codec:"LDAC/AAC/SBC", ip:"IP55目标",
-   shipment:"—", share:"—", yoy:"—",
+   shipment:"目标 26Q4: 1M台", share:"目标 1%", yoy:"首发新品",
    rating:null, good_tags:["跨平台多设备连接","中端价位最强ANC","60小时超长续航"],
    bad_tags:["品牌认知待建立","渠道覆盖不足","生态弱于巨头"],
    strategy:"核心差异化：¥799中端价格带，提供旗舰级降噪+跨平台连接+60h续航，主打「小米升级首选」"
@@ -2637,7 +2637,7 @@ const COMP_DATA = [
   const salesEl = document.getElementById("comp_sales");
   salesEl.innerHTML = COMP_DATA.map(p=>{
     const hasData = p.shipment !== "—";
-    const yoyColor = p.yoy.startsWith("+") ? "#10B981" : p.yoy==="-"?"#8B92B8":"#F43F5E";
+    const yoyColor = p.yoy.startsWith("+") ? "#10B981" : (p.yoy==="—"||p.yoy==="-") ? "#8B92B8" : p.yoy==="首发新品" ? "#F59E0B" : "#F43F5E";
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;background:rgba(255,255,255,.42);border-radius:10px;border:1px solid rgba(255,255,255,.7);">
       <div style="width:4px;height:36px;border-radius:2px;background:${p.color};flex-shrink:0;"></div>
       <div style="flex:1;min-width:0;">
