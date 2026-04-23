@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "updated_at": "2026-04-23T01:53:09.312785+00:00",
-    "updated_at_cn": "2026-04-23 01:53",
+    "updated_at": "2026-04-23T13:58:00.745800+00:00",
+    "updated_at_cn": "2026-04-23 13:58",
     "version": "1.0"
   },
   "products": [
@@ -34,8 +34,8 @@
       "product_name": "HUAWEI FreeBuds Pro 4",
       "jd_price": null,
       "jd_origin_price": null,
-      "jd_rating": 5.0,
-      "jd_review_count": "0",
+      "jd_rating": null,
+      "jd_review_count": null,
       "jd_url": "https://item.jd.com/10113739463179.html",
       "pdd_min_price": null,
       "pdd_sales": null,
