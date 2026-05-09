@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "updated_at": "2026-05-08T14:02:05.978585+00:00",
-    "updated_at_cn": "2026-05-08 14:02",
+    "updated_at": "2026-05-09T02:05:12.423945+00:00",
+    "updated_at_cn": "2026-05-09 02:05",
     "version": "1.0"
   },
   "products": [
     {
       "brand": "苹果 AirPods Pro 3",
-      "product_name": "柒牌【3A抗菌/2A防螨】男士短袖polo衫夏季休闲百搭翻领...",
+      "product_name": "Apple AirPods Pro (第三代)",
       "jd_price": null,
       "jd_origin_price": null,
       "jd_rating": null,
@@ -493,7 +493,7 @@
         "rank_min": 7
       },
       {
-        "word": "运动耳机头戴式",
+        "word": "运动耳机狂甩不掉",
         "weight": 100,
         "category": "功能需求",
         "source_keywords": [
@@ -502,7 +502,7 @@
         "rank_min": 8
       },
       {
-        "word": "运动耳机狂甩不掉",
+        "word": "运动耳机头戴式",
         "weight": 100,
         "category": "功能需求",
         "source_keywords": [
@@ -849,7 +849,7 @@
           "rank_min": 7
         },
         {
-          "word": "运动耳机头戴式",
+          "word": "运动耳机狂甩不掉",
           "weight": 100,
           "category": "功能需求",
           "source_keywords": [
@@ -858,7 +858,7 @@
           "rank_min": 8
         },
         {
-          "word": "运动耳机狂甩不掉",
+          "word": "运动耳机头戴式",
           "weight": 100,
           "category": "功能需求",
           "source_keywords": [
@@ -1114,7 +1114,7 @@
           "rank_min": 7
         },
         {
-          "word": "骨传导耳机自带内存",
+          "word": "骨传导耳机有线",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
@@ -1123,7 +1123,7 @@
           "rank_min": 8
         },
         {
-          "word": "骨传导耳机有线",
+          "word": "骨传导耳机自带内存",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
@@ -1186,7 +1186,7 @@
           "rank_min": 5
         },
         {
-          "word": "开放式耳机热销榜",
+          "word": "开放式耳机排行榜",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
@@ -1195,7 +1195,7 @@
           "rank_min": 6
         },
         {
-          "word": "开放式耳机排行榜",
+          "word": "开放式耳机热销榜",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
@@ -1204,7 +1204,7 @@
           "rank_min": 7
         },
         {
-          "word": "开放式耳机华为",
+          "word": "开放式耳机防丢绳",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
@@ -1213,7 +1213,7 @@
           "rank_min": 8
         },
         {
-          "word": "开放式耳机防丢绳",
+          "word": "开放式耳机华为",
           "weight": 100,
           "category": "形态词",
           "source_keywords": [
