@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "updated_at": "2026-05-16T02:07:48.386823+00:00",
-    "updated_at_cn": "2026-05-16 02:07",
+    "updated_at": "2026-05-16T13:43:34.427822+00:00",
+    "updated_at_cn": "2026-05-16 13:43",
     "version": "1.0"
   },
   "products": [
     {
       "brand": "苹果 AirPods Pro 3",
-      "product_name": "柒牌【3A抗菌/2A防螨】男士短袖polo衫夏季休闲百搭翻领...",
+      "product_name": "Apple AirPods Pro (第三代)",
       "jd_price": null,
       "jd_origin_price": null,
       "jd_rating": null,
@@ -55,7 +55,7 @@
     },
     {
       "brand": "三星 Galaxy Buds3 Pro",
-      "product_name": "三星 Samsung Buds3 Pro智能降噪蓝牙耳机/无...",
+      "product_name": "Samsung Galaxy Buds3 Pro",
       "jd_price": null,
       "jd_origin_price": null,
       "jd_rating": null,
@@ -69,186 +69,6 @@
   "news": [],
   "taobao": {
     "top_words": [
-      {
-        "word": "tws耳夹式蓝牙耳机",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 1
-      },
-      {
-        "word": "tws耳机电池",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 2
-      },
-      {
-        "word": "tws蓝牙耳机",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 3
-      },
-      {
-        "word": "vivo蓝牙耳机tws4",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 4
-      },
-      {
-        "word": "vivo耳机tws5",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 5
-      },
-      {
-        "word": "iqoo耳机tws5",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 6
-      },
-      {
-        "word": "vivo tws5耳机保护壳",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 7
-      },
-      {
-        "word": "vivo tws5耳机",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 8
-      },
-      {
-        "word": "vivo tws air3耳机",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 9
-      },
-      {
-        "word": "vivo耳机tws3i",
-        "weight": 100,
-        "category": "其他",
-        "source_keywords": [
-          "TWS耳机"
-        ],
-        "rank_min": 10
-      },
-      {
-        "word": "降噪耳机头戴款",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 1
-      },
-      {
-        "word": "降噪耳机蓝牙",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 2
-      },
-      {
-        "word": "降噪耳机超级隔音睡眠",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 3
-      },
-      {
-        "word": "降噪耳机头戴式",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 4
-      },
-      {
-        "word": "降噪耳机有线",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 5
-      },
-      {
-        "word": "降噪耳机睡眠专用睡觉侧睡",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 6
-      },
-      {
-        "word": "降噪耳机学习专用隔音",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 7
-      },
-      {
-        "word": "降噪耳机2026热卖",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 8
-      },
-      {
-        "word": "降噪耳机索尼xm5",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 9
-      },
-      {
-        "word": "降噪耳机婴儿",
-        "weight": 100,
-        "category": "功能需求",
-        "source_keywords": [
-          "降噪耳机"
-        ],
-        "rank_min": 10
-      },
       {
         "word": "无线耳机蓝牙",
         "weight": 100,
@@ -518,100 +338,190 @@
           "运动耳机"
         ],
         "rank_min": 10
+      },
+      {
+        "word": "游戏耳机头戴式",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 1
+      },
+      {
+        "word": "游戏耳机入耳式",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 2
+      },
+      {
+        "word": "游戏耳机有线",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 3
+      },
+      {
+        "word": "游戏耳机蓝牙",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 4
+      },
+      {
+        "word": "游戏耳机 入耳",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 5
+      },
+      {
+        "word": "游戏耳机 头戴",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 6
+      },
+      {
+        "word": "游戏耳机无线",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 7
+      },
+      {
+        "word": "游戏耳机吃鸡专用",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 8
+      },
+      {
+        "word": "游戏耳机三角洲",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 9
+      },
+      {
+        "word": "游戏耳机电竞专用",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "游戏耳机"
+        ],
+        "rank_min": 10
+      },
+      {
+        "word": "骨传导耳机蓝牙",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 1
+      },
+      {
+        "word": "骨传导耳机韶音",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 2
+      },
+      {
+        "word": "骨传导耳机游泳",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 3
+      },
+      {
+        "word": "骨传导耳机运动跑步专用",
+        "weight": 100,
+        "category": "功能需求",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 4
+      },
+      {
+        "word": "骨传导耳机华为",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 5
+      },
+      {
+        "word": "骨传导耳机小米",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 6
+      },
+      {
+        "word": "骨传导耳机收纳包",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 7
+      },
+      {
+        "word": "骨传导耳机有线",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 8
+      },
+      {
+        "word": "骨传导耳机自带内存",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 9
+      },
+      {
+        "word": "骨传导耳机充电线",
+        "weight": 100,
+        "category": "形态词",
+        "source_keywords": [
+          "骨传导耳机"
+        ],
+        "rank_min": 10
       }
     ],
     "categories": {
       "其他": [
-        {
-          "word": "tws耳夹式蓝牙耳机",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 1
-        },
-        {
-          "word": "tws耳机电池",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 2
-        },
-        {
-          "word": "tws蓝牙耳机",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 3
-        },
-        {
-          "word": "vivo蓝牙耳机tws4",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 4
-        },
-        {
-          "word": "vivo耳机tws5",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 5
-        },
-        {
-          "word": "iqoo耳机tws5",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 6
-        },
-        {
-          "word": "vivo tws5耳机保护壳",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 7
-        },
-        {
-          "word": "vivo tws5耳机",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 8
-        },
-        {
-          "word": "vivo tws air3耳机",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 9
-        },
-        {
-          "word": "vivo耳机tws3i",
-          "weight": 100,
-          "category": "其他",
-          "source_keywords": [
-            "TWS耳机"
-          ],
-          "rank_min": 10
-        },
         {
           "word": "无线耳机蓝牙",
           "weight": 100,
@@ -686,96 +596,6 @@
         }
       ],
       "功能需求": [
-        {
-          "word": "降噪耳机头戴款",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 1
-        },
-        {
-          "word": "降噪耳机蓝牙",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 2
-        },
-        {
-          "word": "降噪耳机超级隔音睡眠",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 3
-        },
-        {
-          "word": "降噪耳机头戴式",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 4
-        },
-        {
-          "word": "降噪耳机有线",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 5
-        },
-        {
-          "word": "降噪耳机睡眠专用睡觉侧睡",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 6
-        },
-        {
-          "word": "降噪耳机学习专用隔音",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 7
-        },
-        {
-          "word": "降噪耳机2026热卖",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 8
-        },
-        {
-          "word": "降噪耳机索尼xm5",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 9
-        },
-        {
-          "word": "降噪耳机婴儿",
-          "weight": 100,
-          "category": "功能需求",
-          "source_keywords": [
-            "降噪耳机"
-          ],
-          "rank_min": 10
-        },
         {
           "word": "无线耳机电竞游戏专用",
           "weight": 100,
@@ -1254,31 +1074,31 @@
     },
     "category_stats": {
       "其他": {
-        "count": 18,
-        "total_weight": 1800,
-        "pct": 22.5
+        "count": 8,
+        "total_weight": 800,
+        "pct": 13.3
       },
       "功能需求": {
-        "count": 32,
-        "total_weight": 3200,
-        "pct": 40.0
+        "count": 22,
+        "total_weight": 2200,
+        "pct": 36.7
       },
       "品牌词": {
         "count": 6,
         "total_weight": 600,
-        "pct": 7.5
+        "pct": 10.0
       },
       "形态词": {
         "count": 22,
         "total_weight": 2200,
-        "pct": 27.5
+        "pct": 36.7
       },
       "通用词": {
         "count": 2,
         "total_weight": 200,
-        "pct": 2.5
+        "pct": 3.3
       }
     },
-    "total_words": 80
+    "total_words": 60
   }
 }
