@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "updated_at": "2026-11-08T17:47:56.339325+00:00",
-    "updated_at_cn": "2026-11-08 17:47",
+    "updated_at": "2026-11-09T03:47:12.710454+00:00",
+    "updated_at_cn": "2026-11-09 03:47",
     "version": "1.0"
   },
   "products": [
@@ -876,6 +876,96 @@
           "rank_min": 10
         },
         {
+          "word": "游戏耳机头戴式",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 1
+        },
+        {
+          "word": "游戏耳机入耳式",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 2
+        },
+        {
+          "word": "游戏耳机有线",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 3
+        },
+        {
+          "word": "游戏耳机蓝牙",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 4
+        },
+        {
+          "word": "游戏耳机 入耳",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 5
+        },
+        {
+          "word": "游戏耳机 头戴",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 6
+        },
+        {
+          "word": "游戏耳机无线",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 7
+        },
+        {
+          "word": "游戏耳机吃鸡专用",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 8
+        },
+        {
+          "word": "游戏耳机三角洲",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 9
+        },
+        {
+          "word": "游戏耳机电竞专用",
+          "weight": 100,
+          "category": "功能需求",
+          "source_keywords": [
+            "游戏耳机"
+          ],
+          "rank_min": 10
+        },
+        {
           "word": "骨传导耳机运动跑步专用",
           "weight": 100,
           "category": "功能需求",
@@ -1166,29 +1256,29 @@
       "其他": {
         "count": 18,
         "total_weight": 1800,
-        "pct": 25.7
+        "pct": 22.5
       },
       "功能需求": {
-        "count": 22,
-        "total_weight": 2200,
-        "pct": 31.4
+        "count": 32,
+        "total_weight": 3200,
+        "pct": 40.0
       },
       "品牌词": {
         "count": 6,
         "total_weight": 600,
-        "pct": 8.6
+        "pct": 7.5
       },
       "形态词": {
         "count": 22,
         "total_weight": 2200,
-        "pct": 31.4
+        "pct": 27.5
       },
       "通用词": {
         "count": 2,
         "total_weight": 200,
-        "pct": 2.9
+        "pct": 2.5
       }
     },
-    "total_words": 70
+    "total_words": 80
   }
 }
